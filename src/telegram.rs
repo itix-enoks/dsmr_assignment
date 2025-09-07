@@ -249,8 +249,8 @@ pub enum TelegramData {
         voltages: [TelegramContent<TFloat, f32>; 3],
         currents: [TelegramContent<TFloat, f32>; 3],
         powers: [TelegramContent<TFloat, f32>; 3],
-        total_consumed: [TelegramContent<TFloat, f32>; 3],
-        total_produced: [TelegramContent<TFloat, f32>; 3],
+        total_consumed: TelegramContent<TFloat, f32>,
+        total_produced: TelegramContent<TFloat, f32>,
     },
     Gas {
         total_gas_delivered: TelegramContent<TFloat, f32>,
