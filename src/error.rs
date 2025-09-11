@@ -41,3 +41,9 @@ impl From<PlotError> for MainError {
         MainError::PlotError(value)
     }
 }
+
+impl From<&str> for MainError {
+    fn from(value: &str) -> Self {
+        MainError::IoError(io::Error::new(io::ErrorKind::InvalidData, value))
+    }
+}
