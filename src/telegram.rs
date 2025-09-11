@@ -1,9 +1,9 @@
 use crate::traits::Validatable;
-use crate::traits::Wrapper;
 
-use crate::primitives::{TString, TDate, TFloat};
+use crate::parser::parse_error;
+use tudelft_dsmr_output_generator::{UnixTimeStamp, date_to_timestamp};
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TelegramContentType {
     Start,
     Date,
@@ -19,17 +19,13 @@ pub enum TelegramContentType {
     TotalConsumed,
     TotalProduced,
 
-    /// V1.2+
-    StartChild,
-    EndChild,
-
     /// Gas
     GasTotalDelivered,
 
     End
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TelegramContentUnit {
     V,
     A,
@@ -38,29 +34,125 @@ pub enum TelegramContentUnit {
     M3
 }
 
-#[derive(Clone)]
-pub struct TelegramContent<T: Validatable + Wrapper<U>, U> {
-    telegram_content_type: TelegramContentType,
-    id: (u32, u32, Option<u32>),
-    value: T,
-    unit: Option<TelegramContentUnit>,
+#[derive(Clone, Debug, PartialEq)]
+pub struct Date {
+    pub timestamp: UnixTimeStamp,
 
-    _phantom: std::marker::PhantomData<U> // This is needed for correct static-type checking apparently when not having a type U in any of these fields above
+    pub year: u16,
+    pub month: u8,
+    pub day: u8,
+    pub hour: u8,
+    pub minute: u8,
+    pub seconds: u8,
+    pub dst: bool
 }
 
-impl<T: Validatable + Wrapper<U>, U> TelegramContent<T, U> {
-    pub fn new(telegram_content_type: TelegramContentType, id: (u32, u32, Option<u32>), value: U, unit: Option<TelegramContentUnit>) -> Self {
-        Self {
-            telegram_content_type: telegram_content_type.clone(),
-            id: id,
-            value: T::wrap(value, telegram_content_type.clone()),
-            unit: unit,
-            _phantom: std::marker::PhantomData
+impl Date {
+    pub fn new(
+        year: u16,
+        month: u8,
+        day: u8,
+        hour: u8,
+        minute: u8,
+        seconds: u8,
+        dst: bool
+    ) -> Self {
+        Date {
+            timestamp: date_to_timestamp(
+                year,
+                month,
+                day,
+                hour,
+                minute,
+                seconds,
+                dst,
+            ).ok_or(std::io::ErrorKind::InvalidData).map_err(|_| {
+                parse_error("Invalid date field")
+            }).unwrap(),
+
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            seconds,
+            dst,
         }
     }
 }
 
-impl<T: Validatable + Wrapper<U>, U> TelegramContent<T, U> {
+impl Validatable for Date {
+    fn validate(&self) -> bool {
+        // Add proper date validation logic here
+        self.month >= 1 && self.month <= 12 &&
+            self.day >= 1 && self.day <= 31 &&
+            self.hour < 24 &&
+            self.minute < 60 &&
+            self.seconds < 60
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TelegramContent {
+    pub telegram_content_type: TelegramContentType,
+    pub id: (u32, u32, Option<u32>),
+    pub string_value: Option<String>,
+    pub float_value: Option<f32>,
+    pub date_value: Option<Date>,
+    pub unit: Option<TelegramContentUnit>,
+}
+
+impl TelegramContent {
+    pub fn new_string(
+        telegram_content_type: TelegramContentType,
+        id: (u32, u32, Option<u32>),
+        value: String,
+        unit: Option<TelegramContentUnit>
+    ) -> Self {
+        Self {
+            telegram_content_type,
+            id,
+            string_value: Some(value),
+            float_value: None,
+            date_value: None,
+            unit,
+        }
+    }
+
+    pub fn new_float(
+        telegram_content_type: TelegramContentType,
+        id: (u32, u32, Option<u32>),
+        value: f32,
+        unit: Option<TelegramContentUnit>
+    ) -> Self {
+        Self {
+            telegram_content_type,
+            id,
+            string_value: None,
+            float_value: Some(value),
+            date_value: None,
+            unit,
+        }
+    }
+
+    pub fn new_date(
+        telegram_content_type: TelegramContentType,
+        id: (u32, u32, Option<u32>),
+        value: Date,
+        unit: Option<TelegramContentUnit>
+    ) -> Self {
+        Self {
+            telegram_content_type,
+            id,
+            string_value: None,
+            float_value: None,
+            date_value: Some(value),
+            unit,
+        }
+    }
+
+    // Note that I realize that these types are dependent on eachotehr (so given an ID, we determine the telegram content type *based* on that)
+    // These tests are just for when I still f- up the constructions of said telegram content types
     fn is_id_correct(&self) -> bool {
         match self.telegram_content_type {
             TelegramContentType::Start =>
@@ -70,42 +162,42 @@ impl<T: Validatable + Wrapper<U>, U> TelegramContent<T, U> {
                 },
             TelegramContentType::Date =>
                 match self.id {
-                    (2, 1, Option::None) => true,
+                    (2, 1, None) => true,
                     _ => false
                 }
             TelegramContentType::EventlogSeverity =>
                 match self.id {
-                    (3, 1, _) => true,
+                    (3, 1, Some(_)) => true,
                     _ => false
                 },
             TelegramContentType::EventlogMessage =>
                 match self.id {
-                    (3, 2, _) => true,
+                    (3, 2, Some(_)) => true,
                     _ => false
                 },
             TelegramContentType::EventlogDate =>
                 match self.id {
-                    (3, 3, _) => true,
+                    (3, 3, Some(_)) => true,
                     _ => false
                 },
             TelegramContentType::InformationType =>
                 match self.id {
-                    (4, 1, Option::None) => true,
+                    (4, 1, None) => true,
                     _ => false
                 },
             TelegramContentType::Voltage =>
                 match self.id {
-                    (7, 1, _) => true,
+                    (7, 1, Some(_)) => true,
                     _ => false
                 },
             TelegramContentType::Current =>
                 match self.id {
-                    (7, 2, _) => true,
+                    (7, 2, Some(_)) => true,
                     _ => false
                 },
             TelegramContentType::Power =>
                 match self.id {
-                    (7, 3, _) => true,
+                    (7, 3, Some(_)) => true,
                     _ => false
                 },
             TelegramContentType::TotalConsumed =>
@@ -118,19 +210,9 @@ impl<T: Validatable + Wrapper<U>, U> TelegramContent<T, U> {
                     (7, 4, Some(2)) => true,
                     _ => false
                 },
-            TelegramContentType::StartChild =>
-                match self.id {
-                    (1, 1, _) => true,
-                    _ => false
-                },
-            TelegramContentType::EndChild =>
-                match self.id {
-                    (1, 2, _) => true,
-                    _ => false
-                },
             TelegramContentType::GasTotalDelivered =>
                 match self.id {
-                    (5, 2, Option::None) => true,
+                    (5, 2, None) => true,
                     _ => false
                 },
             TelegramContentType::End =>
@@ -180,55 +262,84 @@ impl<T: Validatable + Wrapper<U>, U> TelegramContent<T, U> {
                 },
         }
     }
+
+    /// FIXME: I will do all the value checks for the types and boundaries/lengths (e.g. F5(2,3), S10, ...) here:
+    // Note that only ONE possible *_value is garantueed to be non-nil after validation.
+    fn is_value_correct(&self) -> bool {
+        match self.telegram_content_type {
+            TelegramContentType::Start |
+            TelegramContentType::EventlogSeverity |
+            TelegramContentType::EventlogMessage |
+            TelegramContentType::InformationType |
+            TelegramContentType::End => {
+                self.string_value.is_some() && self.float_value.is_none() && self.date_value.is_none()
+            },
+            TelegramContentType::Date |
+            TelegramContentType::EventlogDate => {
+                self.string_value.is_none() && self.float_value.is_none() && self.date_value.is_some()
+            },
+            TelegramContentType::Voltage |
+            TelegramContentType::Current |
+            TelegramContentType::Power |
+            TelegramContentType::TotalConsumed |
+            TelegramContentType::TotalProduced |
+            TelegramContentType::GasTotalDelivered => {
+                self.string_value.is_none() && self.float_value.is_some() && self.date_value.is_none()
+            }
+        }
+    }
 }
 
-impl<T: Validatable + Wrapper<U>, U> Validatable for TelegramContent<T, U> {
+impl Validatable for TelegramContent {
     fn validate(&self) -> bool {
         let id_check = self.is_id_correct();
-        let value_check = self.value.validate();
         let unit_check = self.is_unit_correct();
+        let value_check = self.is_value_correct();
+
+        // Additional validation for date values
+        let date_validation = if let Some(ref date) = self.date_value {
+            date.validate()
+        } else {
+            true
+        };
 
         if !id_check {
             println!("[ERROR] id_check failed.");
         }
-        if !value_check {
-            println!("[ERROR] value_check failed.");
-        }
         if !unit_check {
             println!("[ERROR] unit_check failed.");
         }
+        if !value_check {
+            println!("[ERROR] value_check failed.");
+        }
+        if !date_validation {
+            println!("[ERROR] date_validation failed.");
+        }
 
-        return id_check && value_check && unit_check;
+        return id_check && unit_check && value_check && date_validation;
     }
 }
 
+#[derive(Debug)]
 pub struct TelegramBase {
-    start: TelegramContent<TString, String>,
-    date: TelegramContent<TDate, TDate>,
-
-    eventlog_severity: TelegramContent<TString, String>,
-    eventlog_message: TelegramContent<TString, String>,
-    eventlog_date: TelegramContent<TDate, TDate>,
-
-    information_type: TelegramContent<TString, String>,
-
-    start_child: Option<TelegramContent<TString, String>>,
-    end_child: Option<TelegramContent<TString, String>>,
-
-    end: TelegramContent<TString, String>
+    pub start: TelegramContent,
+    pub date: TelegramContent,
+    pub eventlog_severity: Option<TelegramContent>,
+    pub eventlog_message: Option<TelegramContent>,
+    pub eventlog_date: Option<TelegramContent>,
+    pub information_type: TelegramContent,
+    pub end: TelegramContent,
 }
 
 impl TelegramBase {
     pub fn new(
-        start: TelegramContent<TString, String>,
-        date: TelegramContent<TDate, TDate>,
-        eventlog_severity: TelegramContent<TString, String>,
-        eventlog_message: TelegramContent<TString, String>,
-        eventlog_date: TelegramContent<TDate, TDate>,
-        information_type: TelegramContent<TString, String>,
-        start_child: Option<TelegramContent<TString, String>>,
-        end_child: Option<TelegramContent<TString, String>>,
-        end: TelegramContent<TString, String>,
+        start: TelegramContent, // Children don't have this field
+        date: TelegramContent, // Children don't have this field
+        eventlog_severity: Option<TelegramContent>,
+        eventlog_message: Option<TelegramContent>,
+        eventlog_date: Option<TelegramContent>,
+        information_type: TelegramContent,
+        end: TelegramContent,
     ) -> Self {
         Self {
             start,
@@ -237,29 +348,29 @@ impl TelegramBase {
             eventlog_message,
             eventlog_date,
             information_type,
-            start_child,
-            end_child,
             end,
         }
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub enum TelegramData {
     Electricity {
-        voltages: [TelegramContent<TFloat, f32>; 3],
-        currents: [TelegramContent<TFloat, f32>; 3],
-        powers: [TelegramContent<TFloat, f32>; 3],
-        total_consumed: TelegramContent<TFloat, f32>,
-        total_produced: TelegramContent<TFloat, f32>,
+        voltages: [TelegramContent; 3],
+        currents: [TelegramContent; 3],
+        powers: [TelegramContent; 3],
+        total_consumed: TelegramContent,
+        total_produced: TelegramContent,
     },
     Gas {
-        total_gas_delivered: TelegramContent<TFloat, f32>,
+        total_gas_delivered: TelegramContent,
     },
 }
 
+#[derive(Debug)]
 pub struct Telegram {
-    base: TelegramBase,
-    data: TelegramData,
+    pub base: TelegramBase,
+    pub data: TelegramData,
 }
 
 impl Telegram {
