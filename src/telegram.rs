@@ -96,7 +96,7 @@ impl Validatable for Date {
 pub enum Value {
     String(String),
     Date(Date),
-    Float(f32)
+    Float(f64)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -316,8 +316,8 @@ pub struct TelegramBase {
 
 impl TelegramBase {
     pub fn new(
-        start: TelegramContent, // Children don't have this field
-        date: TelegramContent, // Children don't have this field
+        start: TelegramContent,
+        date: TelegramContent,
         eventlog_severity: Option<TelegramContent>,
         eventlog_message: Option<TelegramContent>,
         eventlog_date: Option<TelegramContent>,
