@@ -1,7 +1,9 @@
+use tudelft_dsmr_output_generator::UnixTimeStamp;
 use tudelft_dsmr_output_generator::Graphs;
 use dsmr_assignment::error::MainError;
 use tudelft_dsmr_output_generator::voltage_over_time::{create_voltage_over_time_graph, VoltageData};
 use tudelft_dsmr_output_generator::current_over_time::{CurrentOverTime, CurrentData};
+use tudelft_dsmr_output_generator::gas_over_time::{GasOverTime, GasData};
 use dsmr_assignment::telegram::{TelegramContent, TelegramData, Value};
 use std::io::Read;
 // use tudelft_dsmr_output_generator::voltage_over_time::{
@@ -36,7 +38,13 @@ use tudelft_dsmr_output_generator::GraphBuilder;
 fn main() -> Result<(), MainError> {
     let input = read_from_stdin()?;
 
-    let telegrams = parse(&input)?;
+    let mut telegrams = parse(&input)?;
+    telegrams.sort_by_key(|t|
+                          match &t.base.date.value {
+                              Some(Value::Date(date)) => date.timestamp,
+                              _ => panic!("Invalid timestamp")
+                          }
+    );
 
     let voltages: Vec<VoltageData> =
         telegrams
@@ -97,11 +105,40 @@ fn main() -> Result<(), MainError> {
         current_over_time.add(c);
     }
 
-    let mut result = Graphs::new()?;
+    let gas_pairs: Vec<(UnixTimeStamp, f64)> =
+        telegrams
+        .iter()
+        .filter_map(|t| {
+            let timestamp = match &t.base.date.value {
+                Some(Value::Date(date)) => date.timestamp,
+                _ => panic!("Invalid timestamp")
+            };
+            match &t.data {
+                TelegramData::Gas { total_gas_delivered }  =>
+                    match total_gas_delivered {
+                        TelegramContent { value: Some(Value::Float(gas)), .. } =>
+                            Some((timestamp, *gas)),
+                        _ => Option::None
+                    },
+                _ => Option::None
+            }
+        })
+        .collect();
+    let mut gas_delta_over_time: GasOverTime = GasOverTime::new();
+    for (idx, (timestamp, current_gas)) in gas_pairs.iter().enumerate() {
+        if idx == 0 {
+            continue;
+        }
+        gas_delta_over_time.add(GasData {
+            timestamp: *timestamp,
+            gas_delta: *current_gas - gas_pairs[idx - 1].1 // Total gas stashed decreases
+        });
+    }
 
+    let mut result = Graphs::new()?;
     result.add_graph(create_voltage_over_time_graph(voltages))?;
     result.add_graph(current_over_time)?;
-
+    result.add_graph(gas_delta_over_time)?;
     let _ = result.generate();
 
     Ok(())

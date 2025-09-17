@@ -88,7 +88,7 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
             _config = Some(parse_header(line)?);
             continue;
         }
-        println!("info: parsing line {}: {}", index, line);
+        // println!("info: parsing line {}: {}", index, line);
         if line.trim().is_empty() {
             continue;
         }
@@ -126,7 +126,7 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
         }
     }
 
-    completed_stack.reverse(); println!("info: {:?}", completed_stack);
+    completed_stack.reverse(); // println!("info: {:?}", completed_stack);
     Ok(completed_stack)
 }
 
