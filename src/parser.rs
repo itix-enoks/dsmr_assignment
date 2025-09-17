@@ -182,7 +182,7 @@ pub fn parse_line(line: &str) -> Result<TelegramContent, MainError> {
         TelegramContentType::TotalConsumed |
         TelegramContentType::TotalProduced |
         TelegramContentType::GasTotalDelivered => {
-            let float_value = value_str.parse::<f32>()
+            let float_value = value_str.parse::<f64>()
                 .map_err(|_| parse_error("Invalid float value"))?;
             Ok(TelegramContent::new_value(content_type, id, Value::Float(float_value), unit))
         }
