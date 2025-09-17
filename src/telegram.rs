@@ -93,60 +93,31 @@ impl Validatable for Date {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum Value {
+    String(String),
+    Date(Date),
+    Float(f32)
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct TelegramContent {
     pub telegram_content_type: TelegramContentType,
     pub id: (u32, u32, Option<u32>),
-    pub string_value: Option<String>,
-    pub float_value: Option<f32>,
-    pub date_value: Option<Date>,
+    pub value: Option<Value>,
     pub unit: Option<TelegramContentUnit>,
 }
 
 impl TelegramContent {
-    pub fn new_string(
+    pub fn new_value(
         telegram_content_type: TelegramContentType,
         id: (u32, u32, Option<u32>),
-        value: String,
+        value: Value,
         unit: Option<TelegramContentUnit>
     ) -> Self {
         Self {
             telegram_content_type,
             id,
-            string_value: Some(value),
-            float_value: None,
-            date_value: None,
-            unit,
-        }
-    }
-
-    pub fn new_float(
-        telegram_content_type: TelegramContentType,
-        id: (u32, u32, Option<u32>),
-        value: f32,
-        unit: Option<TelegramContentUnit>
-    ) -> Self {
-        Self {
-            telegram_content_type,
-            id,
-            string_value: None,
-            float_value: Some(value),
-            date_value: None,
-            unit,
-        }
-    }
-
-    pub fn new_date(
-        telegram_content_type: TelegramContentType,
-        id: (u32, u32, Option<u32>),
-        value: Date,
-        unit: Option<TelegramContentUnit>
-    ) -> Self {
-        Self {
-            telegram_content_type,
-            id,
-            string_value: None,
-            float_value: None,
-            date_value: Some(value),
+            value: Some(value),
             unit,
         }
     }
@@ -272,11 +243,19 @@ impl TelegramContent {
             TelegramContentType::EventlogMessage |
             TelegramContentType::InformationType |
             TelegramContentType::End => {
-                self.string_value.is_some() && self.float_value.is_none() && self.date_value.is_none()
+                if let Some(Value::String(_)) = self.value {
+                    return true;
+                } else {
+                    return false;
+                }
             },
             TelegramContentType::Date |
             TelegramContentType::EventlogDate => {
-                self.string_value.is_none() && self.float_value.is_none() && self.date_value.is_some()
+                if let Some(Value::Date(_)) = self.value {
+                    return true;
+                } else {
+                    return false;
+                }
             },
             TelegramContentType::Voltage |
             TelegramContentType::Current |
@@ -284,7 +263,11 @@ impl TelegramContent {
             TelegramContentType::TotalConsumed |
             TelegramContentType::TotalProduced |
             TelegramContentType::GasTotalDelivered => {
-                self.string_value.is_none() && self.float_value.is_some() && self.date_value.is_none()
+                if let Some(Value::Float(_)) = self.value {
+                    return true;
+                } else {
+                    return false;
+                }
             }
         }
     }
@@ -297,7 +280,7 @@ impl Validatable for TelegramContent {
         let value_check = self.is_value_correct();
 
         // Additional validation for date values
-        let date_validation = if let Some(ref date) = self.date_value {
+        let date_validation = if let Some(Value::Date(date)) = &self.value {
             date.validate()
         } else {
             true
