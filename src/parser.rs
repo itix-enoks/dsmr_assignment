@@ -1,7 +1,7 @@
 use crate::error::MainError;
 use crate::telegram::{
     Telegram, TelegramBase, TelegramData, TelegramContent, TelegramContentType,
-    TelegramContentUnit, Date
+    TelegramContentUnit, Date, Value
 };
 
 pub struct ParserConfig {
@@ -167,13 +167,13 @@ pub fn parse_line(line: &str) -> Result<TelegramContent, MainError> {
         TelegramContentType::EventlogMessage |
         TelegramContentType::InformationType |
         TelegramContentType::End => {
-            Ok(TelegramContent::new_string(content_type, id, value_str.to_string(), unit))
+            Ok(TelegramContent::new_value(content_type, id, Value::String(value_str.to_string()), unit))
         },
 
         TelegramContentType::Date |
         TelegramContentType::EventlogDate => {
             let date = parse_date(value_str)?;
-            Ok(TelegramContent::new_date(content_type, id, date, unit))
+            Ok(TelegramContent::new_value(content_type, id, Value::Date(date), unit))
         },
 
         TelegramContentType::Voltage |
@@ -184,7 +184,7 @@ pub fn parse_line(line: &str) -> Result<TelegramContent, MainError> {
         TelegramContentType::GasTotalDelivered => {
             let float_value = value_str.parse::<f32>()
                 .map_err(|_| parse_error("Invalid float value"))?;
-            Ok(TelegramContent::new_float(content_type, id, float_value, unit))
+            Ok(TelegramContent::new_value(content_type, id, Value::Float(float_value), unit))
         }
     }
 }
