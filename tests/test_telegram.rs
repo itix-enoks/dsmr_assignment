@@ -1,14 +1,14 @@
 use dsmr_assignment::traits::Validatable;
 
-use dsmr_assignment::telegram::{Telegram, TelegramBase, TelegramData, TelegramContent, TelegramContentType, TelegramContentUnit, Date};
+use dsmr_assignment::telegram::{Telegram, TelegramBase, TelegramData, TelegramContent, TelegramContentType, TelegramContentUnit, Date, Value};
 
 // 1. Check whether the simplified TelegramContent compiles and validates correctly
 #[test]
 fn test_telegram_content_string() {
-    let t = TelegramContent::new_string(
+    let t = TelegramContent::new_value(
         TelegramContentType::Start,
         (1, 1, Some(0)),
-        String::from("START"),
+        Value::String(String::from("START")),
         Option::None
     );
     assert_eq!(true, t.validate());
@@ -16,10 +16,10 @@ fn test_telegram_content_string() {
 
 #[test]
 fn test_telegram_content_tdate() {
-    let t = TelegramContent::new_date(
+    let t = TelegramContent::new_value(
         TelegramContentType::EventlogDate,
         (3, 3, Some(1)),
-        Date::new(1, 1, 1, 1, 1, 1, false),
+        Value::Date(Date::new(1, 1, 1, 1, 1, 1, false)),
         None
     );
     assert_eq!(true, t.validate());
@@ -27,10 +27,10 @@ fn test_telegram_content_tdate() {
 
 #[test]
 fn test_telegram_content_f32() {
-    let t = TelegramContent::new_float(
+    let t = TelegramContent::new_value(
         TelegramContentType::Power,
         (7, 3, Some(1)),
-        1.0,
+        Value::Float(1.0),
         Some(TelegramContentUnit::KW)
     );
     assert_eq!(true, t.validate());
@@ -42,79 +42,67 @@ fn test_telegram_content_f32() {
 fn test_telegram_constructor() {
     let _t = Telegram::new(
         TelegramBase::new(
-            TelegramContent::new_string(
+            TelegramContent::new_value(
                 TelegramContentType::Start,
                 (1, 1, Some(0)),
-                "START".to_string(),
+                Value::String("START".to_string()),
                 None,
             ),
-            TelegramContent::new_date(
+            TelegramContent::new_value(
                 TelegramContentType::Date,
                 (2, 1, None),
-                Date::new(2002, 2, 14, 0, 0, 0, true),
+                Value::Date(Date::new(2002, 2, 14, 0, 0, 0, true)),
                 None,
             ),
-            TelegramContent::new_string(
+            Some(TelegramContent::new_value(
                 TelegramContentType::EventlogSeverity,
                 (3, 1, Some(1)),
-                "H".to_string(),
+                Value::String("H".to_string()),
                 None,
-            ),
-            TelegramContent::new_string(
+            )),
+            Some(TelegramContent::new_value(
                 TelegramContentType::EventlogMessage,
                 (3, 2, Some(1)),
-                "Power outage detected".to_string(),
+                Value::String("Power outage detected".to_string()),
                 None,
-            ),
-            TelegramContent::new_date(
+            )),
+            Some(TelegramContent::new_value(
                 TelegramContentType::EventlogDate,
                 (3, 3, Some(1)),
-                Date::new(2002, 2, 14, 14, 30, 0, true),
+                Value::Date(Date::new(2002, 2, 14, 14, 30, 0, true)),
                 None,
-            ),
-            TelegramContent::new_string(
+            )),
+            TelegramContent::new_value(
                 TelegramContentType::InformationType,
                 (4, 1, None),
-                "E".to_string(),
+                Value::String("E".to_string()),
                 None,
             ),
-            Some(TelegramContent::new_string(
-                TelegramContentType::StartChild,
-                (1, 1, Some(1)),
-                "START".to_string(),
-                None,
-            )),
-            Some(TelegramContent::new_string(
-                TelegramContentType::EndChild,
-                (1, 2, Some(1)),
-                "END".to_string(),
-                None,
-            )),
-            TelegramContent::new_string(
+            TelegramContent::new_value(
                 TelegramContentType::End,
                 (1, 2, Some(0)),
-                "END".to_string(),
+                Value::String("END".to_string()),
                 None,
             ),
         ),
         TelegramData::Electricity {
             voltages: [
-                TelegramContent::new_float(TelegramContentType::Voltage, (7, 1, Some(1)), 230.5, None),
-                TelegramContent::new_float(TelegramContentType::Voltage, (7, 1, Some(2)), 231.2, None),
-                TelegramContent::new_float(TelegramContentType::Voltage, (7, 1, Some(3)), 229.8, None),
+                TelegramContent::new_value(TelegramContentType::Voltage, (7, 1, Some(1)), Value::Float(230.5), None),
+                TelegramContent::new_value(TelegramContentType::Voltage, (7, 1, Some(2)), Value::Float(231.2), None),
+                TelegramContent::new_value(TelegramContentType::Voltage, (7, 1, Some(3)), Value::Float(229.8), None),
             ],
             currents: [
-                TelegramContent::new_float(TelegramContentType::Current, (7, 2, Some(1)), 15.3, None),
-                TelegramContent::new_float(TelegramContentType::Current, (7, 2, Some(2)), 12.7, None),
-                TelegramContent::new_float(TelegramContentType::Current, (7, 2, Some(3)), 14.1, None),
+                TelegramContent::new_value(TelegramContentType::Current, (7, 2, Some(1)), Value::Float(15.3), None),
+                TelegramContent::new_value(TelegramContentType::Current, (7, 2, Some(2)), Value::Float(12.7), None),
+                TelegramContent::new_value(TelegramContentType::Current, (7, 2, Some(3)), Value::Float(14.1), None),
             ],
             powers: [
-                TelegramContent::new_float(TelegramContentType::Power, (7, 3, Some(1)), 3.524, None),
-                TelegramContent::new_float(TelegramContentType::Power, (7, 3, Some(2)), 2.937, None),
-                TelegramContent::new_float(TelegramContentType::Power, (7, 3, Some(3)), 3.240, None),
+                TelegramContent::new_value(TelegramContentType::Power, (7, 3, Some(1)), Value::Float(3.524), None),
+                TelegramContent::new_value(TelegramContentType::Power, (7, 3, Some(2)), Value::Float(2.937), None),
+                TelegramContent::new_value(TelegramContentType::Power, (7, 3, Some(3)), Value::Float(3.240), None),
             ],
-            total_consumed: TelegramContent::new_float(TelegramContentType::TotalConsumed, (7, 4, Some(1)), 12345.67, None),
-            total_produced: TelegramContent::new_float(TelegramContentType::TotalProduced, (7, 4, Some(2)), 0.0, None),
+            total_consumed: TelegramContent::new_value(TelegramContentType::TotalConsumed, (7, 4, Some(1)), Value::Float(12345.67), None),
+            total_produced: TelegramContent::new_value(TelegramContentType::TotalProduced, (7, 4, Some(2)), Value::Float(0.0), None),
         },
     );
 }

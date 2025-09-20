@@ -148,8 +148,8 @@ fn main() -> Result<(), MainError> {
         })
         .collect();
 
-    /// Duplicate timestamps in dsmr file messes up the energy_over_time plot, it does not seem to
-    ///  mess up the other plots though (visually at least: but I may need to check them later).
+    // Duplicate timestamps in dsmr file messes up the energy_over_time plot, it does not seem to
+    //  mess up the other plots though (visually at least: but I may need to check them later).
     let mut processed_timestamps: HashSet<UnixTimeStamp> = HashSet::new();
     let mut energy_pair_delta_over_time: EnergyOverTime = EnergyOverTime::new();
     let mut energy_pair_vector: Vec<EnergyData> = Vec::new();
