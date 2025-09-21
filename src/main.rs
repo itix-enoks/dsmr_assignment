@@ -30,12 +30,17 @@ fn read_from_stdin() -> Result<String, MainError> {
 fn main() -> Result<(), MainError> {
     let input = read_from_stdin()?;
 
-    let mut telegrams = parse(&input)?;
-    telegrams.sort_by_key(|t|
-                          match &t.base.date.value {
-                              Some(Value::Date(date)) => date.timestamp,
-                              _ => panic!("Invalid timestamp")
-                          }
+    let telegrams = parse(&input);
+    if telegrams.is_err() {
+        eprintln!("{telegrams}", telegrams = telegrams.unwrap_err());
+        std::process::exit(42);
+    }
+    let mut telegrams = telegrams.unwrap();
+
+    telegrams.sort_by_key(|t| match &t.base.date.value {
+        Some(Value::Date(date)) => date.timestamp,
+        _ => panic!("Invalid timestamp")
+    }
     );
 
     let voltages: Vec<VoltageData> =
@@ -91,7 +96,6 @@ fn main() -> Result<(), MainError> {
             }
         })
         .collect();
-
     let mut current_over_time = CurrentOverTime::new();
     for c in currents {
         current_over_time.add(c);
