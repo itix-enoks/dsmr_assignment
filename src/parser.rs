@@ -3,6 +3,7 @@ use crate::telegram::{
     Telegram, TelegramBase, TelegramData, TelegramContent, TelegramContentType,
     TelegramContentUnit, Date, Value
 };
+use crate::traits::validatable::Validatable;
 
 #[derive(Clone)]
 pub struct ParserConfig {
@@ -31,33 +32,33 @@ pub fn parse_error(msg: &str) -> MainError {
 
 pub fn parse_header(line: &str) -> Result<ParserConfig, MainError> {
     if line.contains(' ') {
-        return Err(parse_error("Invalid header format"));
+        return Err(parse_error("Invalid header format"))
     }
     if !line.starts_with('/') {
-        return Err(parse_error("Invalid header format"));
+        return Err(parse_error("Invalid header format"))
     }
 
     let parts: Vec<&str> = line.split(&['/', '\\'][..]).collect();
     if parts.len() != 3 {
-        return Err(parse_error("Invalid header format"));
+        return Err(parse_error("Invalid header format"))
     }
 
     let version = match parts[1] {
         "v10" => if !line.contains('+') {
             (1, 0)
         } else {
-            return Err(parse_error("Invalid header format"));
+            return Err(parse_error("Invalid header format"))
         },
         "v12" => (1, 2),
         _ => {
-            return Err(parse_error("Invalid header format"));
+            return Err(parse_error("Invalid header format"))
         }
     };
 
     let parts: Vec<&str> = line.split('+').collect();
     if parts.len() != 2 {
         // No extensions
-        return ParserConfig::new(version, false, false);
+        return ParserConfig::new(version, false, false)
     }
 
     let (is_gas, is_recursive) = match parts[1] {
@@ -65,7 +66,7 @@ pub fn parse_header(line: &str) -> Result<ParserConfig, MainError> {
         "r" => (false, true),
         "gr" | "rg" => (true, true),
         _ => {
-            return Err(parse_error("Invalid header format"));
+            return Err(parse_error("Invalid header format"))
         }
     };
 
@@ -75,13 +76,12 @@ pub fn parse_header(line: &str) -> Result<ParserConfig, MainError> {
 pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
     let lines: Vec<&str> = input.lines().collect();
     if lines.is_empty() {
-        return Err(parse_error("Empty input"));
+        return Err(parse_error("Empty input"))
     }
     let mut config: Option<ParserConfig> = Option::None;
     let mut temporary_stack: Vec<Vec<TelegramContent>> = Vec::new();
     let mut completed_stack: Vec<Telegram> = Vec::new();
 
-    // FIXME: we should raise exception when parsing extensions that MUST be disabled by the spec (per version).
     // Parse all lines into telegram contents
     for (index, line) in lines.into_iter().enumerate() {
         // Parse header
@@ -110,18 +110,18 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
                             completed_stack.push(build_telegram(last_telegram)?);
                         }
                         if !config.clone().unwrap().is_recursive && temporary_stack.len() > 0 {
-                            return Err(parse_error("error: recursive telegrams are not supported"));
+                            return Err(parse_error("Recursive telegrams are not supported"))
                         }
                     },
                     ref tct => {
                         if !config.clone().unwrap().is_gas && matches!(tct, TelegramContentType::GasTotalDelivered) {
-                            return Err(parse_error("error: gas data is not supported"));
+                            return Err(parse_error("Gas data is not supported"))
                         }
                         if matches!(tct, TelegramContentType::InformationType) {
                             if !config.clone().unwrap().is_gas {
                                 if let Some(Value::String(ref information_type)) = content.value {
                                     if *information_type == "G".to_string() {
-                                        return Err(parse_error("error: gas data is not supported"));
+                                        return Err(parse_error("Gas data is not supported"))
                                     }
                                 }
                             }
@@ -134,7 +134,7 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
             },
             Err(e) => {
                 eprintln!("error: failed to parse line {}: {:?}", index, e);
-                return Err(parse_error("error: failed to parse line"));
+                return Err(parse_error("Failed to parse line"));
             }
         }
     }
@@ -145,12 +145,12 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
 
 pub fn parse_line(line: &str) -> Result<TelegramContent, MainError> {
     if !line.contains('(') || !line.contains(')') {
-        return Err(parse_error("Invalid line format"));
+        return Err(parse_error("Invalid line format"))
     }
 
     let parts: Vec<&str> = line.split('#').collect();
     if parts.len() != 2 {
-        return Err(parse_error("Invalid line format"));
+        return Err(parse_error("Invalid line format"))
     }
 
     let id_part = parts[0];
@@ -166,27 +166,103 @@ pub fn parse_line(line: &str) -> Result<TelegramContent, MainError> {
     let (value_str, unit) = if value_part.contains('*') {
         let value_parts: Vec<&str> = value_part.split('*').collect();
         if value_parts.len() != 2 {
-            return Err(parse_error("Invalid value*unit format"));
+            return Err(parse_error("Invalid value*unit format"))
         }
         (value_parts[0], Some(parse_unit(value_parts[1])?))
     } else {
         (value_part, None)
     };
 
-    // Create appropriate TelegramContent based on type
+    // Check value format
+    let value_len = value_str.to_string().len();
     match content_type {
+        TelegramContentType::Start => if value_str != "START".to_string() {
+            return Err(parse_error("Invalid start block"))
+        },
+        TelegramContentType::EventlogSeverity => if value_str != "H".to_string() && value_str != "L".to_string() {
+            return Err(parse_error("Invalid eventlog severity"))
+        },
+        TelegramContentType::EventlogMessage => if value_len > 1024 {
+            return Err(parse_error("Invalid eventlog message"))
+        },
+        TelegramContentType::InformationType => if value_str != "E".to_string() && value_str != "G".to_string() {
+            return Err(parse_error("Invalid information type"))
+        },
+        TelegramContentType::End => if value_str != "END".to_string() {
+            return Err(parse_error("Invalid end block"))
+        },
+        TelegramContentType::Date |
+        TelegramContentType::EventlogDate => if parse_date(value_str).is_err() {
+            return Err(parse_error("Invalid date block"))
+        },
+        TelegramContentType::Voltage => {
+            if !value_str.contains(".") {
+                return Err(parse_error("Invalid voltage value"))
+            }
+            let parts: Vec<&str> = value_str.split(".").collect();
+            if (parts[1].len() != 1 && parts[1].len() != 2) || value_len != 6 {
+                return Err(parse_error("Invalid voltage value"))
+            }
+        },
+        TelegramContentType::Current => {
+            if !value_str.contains(".") {
+                if value_len != 2 {
+                    return Err(parse_error("Invalid current value"))
+                }
+            }
+            else {
+                let parts: Vec<&str> = value_str.split(".").collect();
+                if (parts[1].len() != 0 && parts[1].len() != 1) || value_len != 3 {
+                    return Err(parse_error("Invalid voltage value"))
+                }
+            }
+        },
+        TelegramContentType::Power => {
+            let ext_size = if !value_str.starts_with("+") && !value_str.starts_with("-") { 0 } else { 1 };
+            let parts: Vec<&str> = value_str.split(".").collect();
+            if parts[1].len() > 3 || value_len != 6 + ext_size {
+                return Err(parse_error("Invalid power value"))
+            }
+        },
+        TelegramContentType::TotalConsumed |
+        TelegramContentType::TotalProduced => {
+            if !value_str.contains(".") {
+                if value_len != 10 {
+                    return Err(parse_error("Invalid cumulative power value"))
+                }
+            }
+            else {
+                let parts: Vec<&str> = value_str.split(".").collect();
+                if parts[1].len() > 10 || value_len != 11 {
+                    return Err(parse_error("Invalid cumulative power value"))
+                }
+            }
+        },
+        TelegramContentType::GasTotalDelivered => {
+            if !value_str.contains(".") {
+                return Err(parse_error("Invalid gas value"))
+            }
+            let parts: Vec<&str> = value_str.split(".").collect();
+            if parts[1].len() != 3 || value_len != 9 {
+                return Err(parse_error("Invalid gas value"))
+            }
+        }
+    }
+
+    // Create appropriate TelegramContent based on type
+    let telegram_content = match content_type {
         TelegramContentType::Start |
         TelegramContentType::EventlogSeverity |
         TelegramContentType::EventlogMessage |
         TelegramContentType::InformationType |
         TelegramContentType::End => {
-            Ok(TelegramContent::new_value(content_type, id, Value::String(value_str.to_string()), unit))
+            Ok::<TelegramContent, MainError>(TelegramContent::new_value(content_type, id, Value::String(value_str.to_string()), unit))
         },
 
         TelegramContentType::Date |
         TelegramContentType::EventlogDate => {
             let date = parse_date(value_str)?;
-            Ok(TelegramContent::new_value(content_type, id, Value::Date(date), unit))
+            Ok::<TelegramContent, MainError>(TelegramContent::new_value(content_type, id, Value::Date(date), unit))
         },
 
         TelegramContentType::Voltage |
@@ -197,15 +273,21 @@ pub fn parse_line(line: &str) -> Result<TelegramContent, MainError> {
         TelegramContentType::GasTotalDelivered => {
             let float_value = value_str.parse::<f64>()
                 .map_err(|_| parse_error("Invalid float value"))?;
-            Ok(TelegramContent::new_value(content_type, id, Value::Float(float_value), unit))
+            Ok::<TelegramContent, MainError>(TelegramContent::new_value(content_type, id, Value::Float(float_value), unit))
         }
+    }?;
+
+    if telegram_content.validate() {
+        Ok(telegram_content)
+    } else {
+        return Err(parse_error("Invalid final telegram content"))
     }
 }
 
 pub fn parse_id(id_str: &str) -> Result<(u32, u32, Option<u32>), MainError> {
     let digits: Vec<&str> = id_str.split('.').collect();
     if digits.len() == 0 || digits.len() > 3 {
-        return Err(parse_error("Invalid ID format"));
+        return Err(parse_error("Invalid ID format"))
     }
 
     let id_0 = digits[0].parse::<u32>()
@@ -261,13 +343,13 @@ pub fn parse_date(date_str: &str) -> Result<Date, MainError> {
     let parts: Vec<&str> = cleaned.split(' ').collect();
 
     if parts.len() != 3 {
-        return Err(parse_error("Invalid date format"));
+        return Err(parse_error("Invalid date format"))
     }
 
     // Parse date part (YY-MMM-dd)
     let date_parts: Vec<&str> = parts[0].split('-').collect();
     if date_parts.len() != 3 {
-        return Err(parse_error("Invalid date part format"));
+        return Err(parse_error("Invalid date part format"))
     }
 
     let year = format!("20{}", date_parts[0]).parse::<u16>()
@@ -277,7 +359,7 @@ pub fn parse_date(date_str: &str) -> Result<Date, MainError> {
         "Jan" => 1, "Feb" => 2, "Mar" => 3, "Apr" => 4,
         "May" => 5, "Jun" => 6, "Jul" => 7, "Aug" => 8,
         "Sep" => 9, "Oct" => 10, "Nov" => 11, "Dec" => 12,
-        _ => return Err(parse_error("Invalid month name")),
+        _ => return Err(parse_error("Invalid month name"))
     };
 
     let day = date_parts[2].parse::<u8>()
@@ -286,7 +368,7 @@ pub fn parse_date(date_str: &str) -> Result<Date, MainError> {
     // Parse time part (hh:mm:ss)
     let time_parts: Vec<&str> = parts[1].split(':').collect();
     if time_parts.len() != 3 {
-        return Err(parse_error("Invalid time format"));
+        return Err(parse_error("Invalid time format"))
     }
 
     let hour = time_parts[0].parse::<u8>()
@@ -301,7 +383,7 @@ pub fn parse_date(date_str: &str) -> Result<Date, MainError> {
     let dst = match dst_flag {
         "S" => true,  // Summer time (DST active)
         "W" => false, // Winter time (DST not active)
-        _ => return Err(parse_error("Invalid DST flag")),
+        _ => return Err(parse_error("Invalid DST flag"))
     };
 
     Ok(Date::new(year, month, day, hour, minute, seconds, dst))
@@ -384,7 +466,7 @@ pub fn build_telegram(contents: Vec<TelegramContent>) -> Result<Telegram, MainEr
                 total_produced: total_produced.unwrap(),
             }
         } else {
-            return Err(parse_error("Insufficient data for telegram"));
+            return Err(parse_error("Insufficient data for telegram"))
         };
 
     Ok(Telegram::new(base, data))
