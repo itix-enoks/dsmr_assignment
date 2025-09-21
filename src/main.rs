@@ -43,6 +43,10 @@ fn main() -> Result<(), MainError> {
     }
     );
 
+    // Duplicate timestamps in dsmr file messes up the energy_over_time plot, it does not seem to
+    //  mess up the other plots though, but I still skip duplicate timestamps in the other plots
+    //  for now anyway.
+    let mut processed_timestamps: HashSet<UnixTimeStamp> = HashSet::new();
     let voltages: Vec<VoltageData> =
         telegrams
         .iter()
@@ -51,18 +55,23 @@ fn main() -> Result<(), MainError> {
                 Some(Value::Date(date)) => date.timestamp,
                 _ => panic!("Invalid timestamp")
             };
+            if processed_timestamps.contains(&timestamp) {
+                return Option::None
+            }
             match &t.data {
                 TelegramData::Electricity { voltages, .. }  =>
                     match voltages {
                         [TelegramContent { value: Some(Value::Float(p1)), .. },
                          TelegramContent { value: Some(Value::Float(p2)), .. },
-                         TelegramContent { value: Some(Value::Float(p3)), .. }] =>
+                         TelegramContent { value: Some(Value::Float(p3)), .. }] => {
+                            processed_timestamps.insert(timestamp);
                             Some(VoltageData {
                                 timestamp: timestamp,
                                 phase_1: *p1,
                                 phase_2: *p2,
                                 phase_3: *p3
-                            }),
+                            })
+                        },
                         _ => Option::None
                     },
                 _ => Option::None
@@ -70,6 +79,7 @@ fn main() -> Result<(), MainError> {
         })
         .collect();
 
+    let mut processed_timestamps: HashSet<UnixTimeStamp> = HashSet::new();
     let currents: Vec<CurrentData> =
         telegrams
         .iter()
@@ -78,18 +88,23 @@ fn main() -> Result<(), MainError> {
                 Some(Value::Date(date)) => date.timestamp,
                 _ => panic!("Invalid timestamp")
             };
+            if processed_timestamps.contains(&timestamp) {
+                return Option::None
+            }
             match &t.data {
                 TelegramData::Electricity { currents, .. }  =>
                     match currents {
                         [TelegramContent { value: Some(Value::Float(p1)), .. },
                          TelegramContent { value: Some(Value::Float(p2)), .. },
-                         TelegramContent { value: Some(Value::Float(p3)), .. }] =>
+                         TelegramContent { value: Some(Value::Float(p3)), .. }] => {
+                            processed_timestamps.insert(timestamp);
                             Some(CurrentData {
                                 timestamp: timestamp,
                                 phase_1: *p1,
                                 phase_2: *p2,
                                 phase_3: *p3
-                            }),
+                            })
+                        },
                         _ => Option::None
                     },
                 _ => Option::None
@@ -101,6 +116,7 @@ fn main() -> Result<(), MainError> {
         current_over_time.add(c);
     }
 
+    let mut processed_timestamps: HashSet<UnixTimeStamp> = HashSet::new();
     let gas_pairs: Vec<(UnixTimeStamp, f64)> =
         telegrams
         .iter()
@@ -109,11 +125,16 @@ fn main() -> Result<(), MainError> {
                 Some(Value::Date(date)) => date.timestamp,
                 _ => panic!("Invalid timestamp")
             };
+            if processed_timestamps.contains(&timestamp) {
+                return Option::None
+            }
             match &t.data {
                 TelegramData::Gas { total_gas_delivered }  =>
                     match total_gas_delivered {
-                        TelegramContent { value: Some(Value::Float(gas)), .. } =>
-                            Some((timestamp, *gas)),
+                        TelegramContent { value: Some(Value::Float(gas)), .. } => {
+                            processed_timestamps.insert(timestamp);
+                            Some((timestamp, *gas))
+                        },
                         _ => Option::None
                     },
                 _ => Option::None
@@ -152,8 +173,6 @@ fn main() -> Result<(), MainError> {
         })
         .collect();
 
-    // Duplicate timestamps in dsmr file messes up the energy_over_time plot, it does not seem to
-    //  mess up the other plots though (visually at least: but I may need to check them later).
     let mut processed_timestamps: HashSet<UnixTimeStamp> = HashSet::new();
     let mut energy_pair_delta_over_time: EnergyOverTime = EnergyOverTime::new();
     let mut energy_pair_vector: Vec<EnergyData> = Vec::new();
