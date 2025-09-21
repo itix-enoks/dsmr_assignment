@@ -128,7 +128,7 @@ impl TelegramContent {
         match self.telegram_content_type {
             TelegramContentType::Start =>
                 match self.id {
-                    (1, 1, Some(0)) => true,
+                    (1, 1, _) => true, // NOTE: childs do not have the third omitted digit, but parents do
                     _ => false
                 },
             TelegramContentType::Date =>
@@ -188,7 +188,7 @@ impl TelegramContent {
                 },
             TelegramContentType::End =>
                 match self.id {
-                    (1, 2, Some(0)) => true,
+                    (1, 2, _) => true, // NOTE: childs do not have the third omitted digit, but parents do
                     _ => false
                 }
         }
@@ -234,8 +234,6 @@ impl TelegramContent {
         }
     }
 
-    /// FIXME: I will do all the value checks for the types and boundaries/lengths (e.g. F5(2,3), S10, ...) here:
-    // Note that only ONE possible *_value is garantueed to be non-nil after validation.
     fn is_value_correct(&self) -> bool {
         match self.telegram_content_type {
             TelegramContentType::Start |
@@ -287,16 +285,16 @@ impl Validatable for TelegramContent {
         };
 
         if !id_check {
-            println!("[ERROR] id_check failed.");
+            eprintln!("[ERROR] id_check failed.");
         }
         if !unit_check {
-            println!("[ERROR] unit_check failed.");
+            eprintln!("[ERROR] unit_check failed.");
         }
         if !value_check {
-            println!("[ERROR] value_check failed.");
+            eprintln!("[ERROR] value_check failed.");
         }
         if !date_validation {
-            println!("[ERROR] date_validation failed.");
+            eprintln!("[ERROR] date_validation failed.");
         }
 
         return id_check && unit_check && value_check && date_validation;
