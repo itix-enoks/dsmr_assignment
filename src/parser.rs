@@ -4,6 +4,7 @@ use crate::telegram::{
     TelegramContentUnit, Date, Value
 };
 
+#[derive(Clone)]
 pub struct ParserConfig {
     pub version: (u32, u32),
     pub is_gas: bool,
@@ -76,7 +77,7 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
     if lines.is_empty() {
         return Err(parse_error("Empty input"));
     }
-    let mut _config: Option<ParserConfig> = Option::None;
+    let mut config: Option<ParserConfig> = Option::None;
     let mut temporary_stack: Vec<Vec<TelegramContent>> = Vec::new();
     let mut completed_stack: Vec<Telegram> = Vec::new();
 
@@ -85,19 +86,18 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
     for (index, line) in lines.into_iter().enumerate() {
         // Parse header
         if index == 0 {
-            _config = Some(parse_header(line)?);
+            config = Some(parse_header(line)?);
             continue;
         }
-        // println!("info: parsing line {}: {}", index, line);
+
         if line.trim().is_empty() {
             continue;
         }
-        //
+
         match parse_line(line) {
             Ok(content) => {
                 match content.telegram_content_type {
                     TelegramContentType::Start => {
-                        // println!("info: {:?}", content);
                         // Make a new one in temp
                         temporary_stack.push(Vec::new());
                         if let Some(last) = temporary_stack.last_mut() {
@@ -105,14 +105,27 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
                         }
                     },
                     TelegramContentType::End => {
-                        // println!("info: {:?}", content);
                         if let Some(mut last_telegram) = temporary_stack.pop() {
                             last_telegram.push(content);
                             completed_stack.push(build_telegram(last_telegram)?);
                         }
+                        if !config.clone().unwrap().is_recursive && temporary_stack.len() > 0 {
+                            return Err(parse_error("error: recursive telegrams are not supported"));
+                        }
                     },
-                    _ => {
-                        // println!("info: {:?}", content);
+                    ref tct => {
+                        if !config.clone().unwrap().is_gas && matches!(tct, TelegramContentType::GasTotalDelivered) {
+                            return Err(parse_error("error: gas data is not supported"));
+                        }
+                        if matches!(tct, TelegramContentType::InformationType) {
+                            if !config.clone().unwrap().is_gas {
+                                if let Some(Value::String(ref information_type)) = content.value {
+                                    if *information_type == "G".to_string() {
+                                        return Err(parse_error("error: gas data is not supported"));
+                                    }
+                                }
+                            }
+                        }
                         if let Some(last) = temporary_stack.last_mut() {
                             last.push(content);
                         }
@@ -120,8 +133,8 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
                 }
             },
             Err(e) => {
-                println!("warning: failed to parse line {}: {:?}", index, e);
-                continue;
+                eprintln!("error: failed to parse line {}: {:?}", index, e);
+                return Err(parse_error("error: failed to parse line"));
             }
         }
     }
@@ -213,18 +226,18 @@ pub fn determine_content_type(id: &(u32, u32, Option<u32>)) -> Result<TelegramCo
     match id {
         (1, 1, Some(0)) | (1, 1, _) => Ok(TelegramContentType::Start),
         (1, 2, Some(0)) | (1, 2, _) => Ok(TelegramContentType::End),
-        (2, 1, None) => Ok(TelegramContentType::Date),
-        (3, 1, _) => Ok(TelegramContentType::EventlogSeverity),
-        (3, 2, _) => Ok(TelegramContentType::EventlogMessage),
-        (3, 3, _) => Ok(TelegramContentType::EventlogDate),
-        (4, 1, None) => Ok(TelegramContentType::InformationType),
-        (5, 2, None) => Ok(TelegramContentType::GasTotalDelivered),
-        (7, 1, _) => Ok(TelegramContentType::Voltage),
-        (7, 2, _) => Ok(TelegramContentType::Current),
-        (7, 3, _) => Ok(TelegramContentType::Power),
-        (7, 4, Some(1)) => Ok(TelegramContentType::TotalConsumed),
-        (7, 4, Some(2)) => Ok(TelegramContentType::TotalProduced),
-        _ => Err(parse_error(&format!("Unknown ID: {:?}", id))),
+        (2, 1, None)                => Ok(TelegramContentType::Date),
+        (3, 1, _)                   => Ok(TelegramContentType::EventlogSeverity),
+        (3, 2, _)                   => Ok(TelegramContentType::EventlogMessage),
+        (3, 3, _)                   => Ok(TelegramContentType::EventlogDate),
+        (4, 1, None)                => Ok(TelegramContentType::InformationType),
+        (5, 2, None)                => Ok(TelegramContentType::GasTotalDelivered),
+        (7, 1, _)                   => Ok(TelegramContentType::Voltage),
+        (7, 2, _)                   => Ok(TelegramContentType::Current),
+        (7, 3, _)                   => Ok(TelegramContentType::Power),
+        (7, 4, Some(1))             => Ok(TelegramContentType::TotalConsumed),
+        (7, 4, Some(2))             => Ok(TelegramContentType::TotalProduced),
+        _                           => Err(parse_error(&format!("Unknown ID: {:?}", id))),
     }
 }
 
@@ -313,19 +326,19 @@ pub fn build_telegram(contents: Vec<TelegramContent>) -> Result<Telegram, MainEr
     // Sort contents into appropriate fields
     for content in contents {
         match content.telegram_content_type {
-            TelegramContentType::Start => start = Some(content),
-            TelegramContentType::Date => date = Some(content),
-            TelegramContentType::EventlogSeverity => eventlog_severity = Some(content),
-            TelegramContentType::EventlogMessage => eventlog_message = Some(content),
-            TelegramContentType::EventlogDate => eventlog_date = Some(content),
-            TelegramContentType::InformationType => information_type = Some(content),
-            TelegramContentType::End => end = Some(content),
-            TelegramContentType::Voltage => voltages.push(content),
-            TelegramContentType::Current => currents.push(content),
-            TelegramContentType::Power => powers.push(content),
-            TelegramContentType::TotalConsumed => total_consumed = Some(content),
-            TelegramContentType::TotalProduced => total_produced = Some(content),
-            TelegramContentType::GasTotalDelivered => total_gas_delivered = Some(content),
+            TelegramContentType::Start              => start                = Some(content),
+            TelegramContentType::Date               => date                 = Some(content),
+            TelegramContentType::EventlogSeverity   => eventlog_severity    = Some(content),
+            TelegramContentType::EventlogMessage    => eventlog_message     = Some(content),
+            TelegramContentType::EventlogDate       => eventlog_date        = Some(content),
+            TelegramContentType::InformationType    => information_type     = Some(content),
+            TelegramContentType::End                => end                  = Some(content),
+            TelegramContentType::TotalConsumed      => total_consumed       = Some(content),
+            TelegramContentType::TotalProduced      => total_produced       = Some(content),
+            TelegramContentType::GasTotalDelivered  => total_gas_delivered  = Some(content),
+            TelegramContentType::Voltage            => voltages.push(content),
+            TelegramContentType::Current            => currents.push(content),
+            TelegramContentType::Power              => powers.push(content)
         }
     }
 
@@ -347,7 +360,6 @@ pub fn build_telegram(contents: Vec<TelegramContent>) -> Result<Telegram, MainEr
         }
     } else if voltages.len() >= 3 && currents.len() >= 3 && powers.len() >= 3
         && total_consumed.is_some() && total_produced.is_some() {
-
             let voltage_array: [TelegramContent; 3] = [
                 voltages.clone().into_iter().nth(0).unwrap(),
                 voltages.clone().into_iter().nth(1).unwrap(),
