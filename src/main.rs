@@ -11,6 +11,7 @@ use dsmr_assignment::telegram::{TelegramContent, TelegramData, Value};
 use dsmr_assignment::error::MainError;
 use dsmr_assignment::parser::parse;
 
+
 /// Reads the DSMR file from the terminal.
 /// You do not need to change this nor understand this.
 /// You can use
@@ -27,6 +28,25 @@ fn read_from_stdin() -> Result<String, MainError> {
     Ok(String::from_utf8_lossy(&input).to_string())
 }
 
+/// FIXME: turn panic's into exiting with error code 42 + message
+fn decode_message(message: &String) -> String {
+    let mut result = "".to_string();
+    let mut chars = message.chars();
+    while let Some(ch) = chars.next() {
+        let x = ch.to_digit(16).unwrap_or(0);
+        if let Some(y) = chars.next() {
+            let y = y.to_digit(16).unwrap_or(0);
+            let ascii = char::from_u32(16 * x + y).unwrap_or('0');
+            result.push(ascii);
+        } else {
+            panic!("Unaligned block found");
+        }
+    }
+
+    result
+}
+
+/// FIXME: turn panic's into exiting with error code 42 + message
 fn main() -> Result<(), MainError> {
     let input = read_from_stdin()?;
 
@@ -201,6 +221,21 @@ fn main() -> Result<(), MainError> {
     }
 
     let mut result = Graphs::new()?;
+    telegrams.iter().for_each(|t| {
+        if let Some(TelegramContent { value: Some(Value::String(message)), .. }) = &t.base.eventlog_message {
+            if let Some(TelegramContent { value: Some(Value::String(severity)), .. }) = &t.base.eventlog_severity {
+                let message = decode_message(message);
+                if *severity == "H".to_string() {
+                    result.add_high_severity_event_log_message(message);
+                } else if *severity == "L".to_string() {
+                    result.add_low_severity_event_log_message(message);
+                } else {
+                    panic!("Reached unreachable statement. You are on your own...");
+                }
+            }
+        }
+    });
+
     result.add_graph(create_voltage_over_time_graph(voltages))?;
     result.add_graph(current_over_time)?;
     result.add_graph(gas_delta_over_time)?;
