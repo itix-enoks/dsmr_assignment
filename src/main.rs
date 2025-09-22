@@ -1,16 +1,15 @@
-use std::io::Read;
 use std::collections::HashSet;
+use std::io::Read;
 
-use tudelft_dsmr_output_generator::{Graphs, GraphBuilder, UnixTimeStamp};
-use tudelft_dsmr_output_generator::voltage_over_time::{create_voltage_over_time_graph, VoltageData};
-use tudelft_dsmr_output_generator::current_over_time::{CurrentOverTime, CurrentData};
-use tudelft_dsmr_output_generator::energy_over_time::{EnergyOverTime, EnergyData};
-use tudelft_dsmr_output_generator::gas_over_time::{GasOverTime, GasData};
+use tudelft_dsmr_output_generator::voltage_over_time::{ create_voltage_over_time_graph, VoltageData };
+use tudelft_dsmr_output_generator::current_over_time::{ CurrentOverTime, CurrentData };
+use tudelft_dsmr_output_generator::energy_over_time::{ EnergyOverTime, EnergyData };
+use tudelft_dsmr_output_generator::gas_over_time::{ GasOverTime, GasData };
+use tudelft_dsmr_output_generator::{ Graphs, GraphBuilder, UnixTimeStamp };
 
-use dsmr_assignment::telegram::{TelegramContent, TelegramData, Value};
+use dsmr_assignment::telegram::{ TelegramContent, TelegramData, Value };
 use dsmr_assignment::error::MainError;
 use dsmr_assignment::parser::parse;
-
 
 /// Reads the DSMR file from the terminal.
 /// You do not need to change this nor understand this.
@@ -28,7 +27,20 @@ fn read_from_stdin() -> Result<String, MainError> {
     Ok(String::from_utf8_lossy(&input).to_string())
 }
 
-/// FIXME: turn panic's into exiting with error code 42 + message
+macro_rules! bail {
+    // Same effect as (makes compilation easier):
+    // fn bail(message: &str) {
+    //     eprintln!("{message}");
+    //     std::process::exit(42);
+    // }
+    ($message:literal) => {
+        {
+            eprintln!("{}", $message);
+            std::process::exit(42);
+        }
+    };
+}
+
 fn decode_message(message: &String) -> String {
     let mut result = "".to_string();
     let mut chars = message.chars();
@@ -39,14 +51,13 @@ fn decode_message(message: &String) -> String {
             let ascii = char::from_u32(16 * x + y).unwrap_or('0');
             result.push(ascii);
         } else {
-            panic!("Unaligned block found");
+            bail!("Unaligned block found")
         }
     }
 
     result
 }
 
-/// FIXME: turn panic's into exiting with error code 42 + message
 fn main() -> Result<(), MainError> {
     let input = read_from_stdin()?;
 
@@ -59,7 +70,7 @@ fn main() -> Result<(), MainError> {
 
     telegrams.sort_by_key(|t| match &t.base.date.value {
         Some(Value::Date(date)) => date.timestamp,
-        _ => panic!("Invalid timestamp")
+        _ => bail!("Invalid timestamp")
     }
     );
 
@@ -73,7 +84,7 @@ fn main() -> Result<(), MainError> {
         .filter_map(|t| {
             let timestamp = match &t.base.date.value {
                 Some(Value::Date(date)) => date.timestamp,
-                _ => panic!("Invalid timestamp")
+                _ => bail!("Invalid timestamp")
             };
             if processed_timestamps.contains(&timestamp) {
                 return Option::None
@@ -106,7 +117,7 @@ fn main() -> Result<(), MainError> {
         .filter_map(|t| {
             let timestamp = match &t.base.date.value {
                 Some(Value::Date(date)) => date.timestamp,
-                _ => panic!("Invalid timestamp")
+                _ => bail!("Invalid timestamp")
             };
             if processed_timestamps.contains(&timestamp) {
                 return Option::None
@@ -143,7 +154,7 @@ fn main() -> Result<(), MainError> {
         .filter_map(|t| {
             let timestamp = match &t.base.date.value {
                 Some(Value::Date(date)) => date.timestamp,
-                _ => panic!("Invalid timestamp")
+                _ => bail!("Invalid timestamp")
             };
             if processed_timestamps.contains(&timestamp) {
                 return Option::None
@@ -168,7 +179,7 @@ fn main() -> Result<(), MainError> {
         }
         gas_delta_over_time.add(GasData {
             timestamp: *timestamp,
-            gas_delta: *current_gas - gas_pairs[idx - 1].1 // Total gas stashed decreases
+            gas_delta: *current_gas - gas_pairs[idx - 1].1
         });
     }
 
@@ -178,7 +189,7 @@ fn main() -> Result<(), MainError> {
         .filter_map(|t| {
             let timestamp = match &t.base.date.value {
                 Some(Value::Date(date)) => date.timestamp,
-                _ => panic!("Invalid timestamp")
+                _ => bail!("Invalid timestamp")
             };
             match &t.data {
                 TelegramData::Electricity { total_consumed, total_produced, .. }  =>
@@ -230,7 +241,7 @@ fn main() -> Result<(), MainError> {
                 } else if *severity == "L".to_string() {
                     result.add_low_severity_event_log_message(message);
                 } else {
-                    panic!("Reached unreachable statement. You are on your own...");
+                    bail!("Reached unreachable statement. You are on your own... :/")
                 }
             }
         }

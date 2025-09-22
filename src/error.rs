@@ -47,3 +47,7 @@ impl From<&str> for MainError {
         MainError::IoError(io::Error::new(io::ErrorKind::InvalidData, value))
     }
 }
+
+pub fn parse_error(msg: &str) -> MainError {
+    MainError::from(msg)
+}

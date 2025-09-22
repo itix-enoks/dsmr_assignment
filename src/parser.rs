@@ -1,9 +1,7 @@
-use crate::error::MainError;
-use crate::telegram::{
-    Telegram, TelegramBase, TelegramData, TelegramContent, TelegramContentType,
-    TelegramContentUnit, Date, Value
-};
 use crate::traits::validatable::Validatable;
+
+use crate::error::{ MainError, parse_error };
+use crate::telegram::*;
 
 #[derive(Clone)]
 pub struct ParserConfig {
@@ -24,10 +22,6 @@ impl ParserConfig {
             is_recursive: is_recursive
         })
     }
-}
-
-pub fn parse_error(msg: &str) -> MainError {
-    MainError::from(msg) // Made MainError implement From<&str>
 }
 
 pub fn parse_header(line: &str) -> Result<ParserConfig, MainError> {
@@ -139,7 +133,7 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
         }
     }
 
-    completed_stack.reverse(); // println!("info: {:?}", completed_stack);
+    completed_stack.reverse();
     Ok(completed_stack)
 }
 

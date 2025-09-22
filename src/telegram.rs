@@ -1,7 +1,8 @@
+use tudelft_dsmr_output_generator::{ UnixTimeStamp, date_to_timestamp };
+
 use crate::traits::Validatable;
 
-use crate::parser::parse_error;
-use tudelft_dsmr_output_generator::{UnixTimeStamp, date_to_timestamp};
+use crate::error::parse_error;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TelegramContentType {
