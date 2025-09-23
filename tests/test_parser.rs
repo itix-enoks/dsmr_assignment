@@ -22,24 +22,24 @@ fn test_parse_reorder() {
                     Value::Date(Date::new(2023, 7, 5, 15, 26, 41, true)),
                     None,
                 ),
-                Some(TelegramContent::new_value(
+                vec![(1, TelegramContent::new_value(
                     TelegramContentType::EventlogSeverity,
                     (3, 1, Some(1)),
                     Value::String("H".to_string()),
                     None,
-                )),
-                Some(TelegramContent::new_value(
+                ))],
+                vec![(1, TelegramContent::new_value(
                     TelegramContentType::EventlogMessage,
                     (3, 2, Some(1)),
                     Value::String("506f776572204661696c757265".to_string()),
                     None,
-                )),
-                Some(TelegramContent::new_value(
+                ))],
+                vec![(1, TelegramContent::new_value(
                     TelegramContentType::EventlogDate,
                     (3, 3, Some(1)),
                     Value::Date(Date::new(2023, 7, 2, 13, 12, 0, true)),
                     None,
-                )),
+                ))],
                 TelegramContent::new_value(
                     TelegramContentType::InformationType,
                     (4, 1, None),
@@ -107,24 +107,24 @@ fn test_parse_simple_gas() {
                     Value::Date(Date::new(2023, 7, 5, 15, 26, 41, true)),
                     None,
                 ),
-                Some(TelegramContent::new_value(
+                vec![(1, TelegramContent::new_value(
                     TelegramContentType::EventlogSeverity,
                     (3, 1, Some(1)),
                     Value::String("H".to_string()),
                     None,
-                )),
-                Some(TelegramContent::new_value(
+                ))],
+                vec![(1, TelegramContent::new_value(
                     TelegramContentType::EventlogMessage,
                     (3, 2, Some(1)),
                     Value::String("506f776572204661696c757265".to_string()),
                     None,
-                )),
-                Some(TelegramContent::new_value(
+                ))],
+                vec![(1, TelegramContent::new_value(
                     TelegramContentType::EventlogDate,
                     (3, 3, Some(1)),
                     Value::Date(Date::new(2023, 7, 2, 13, 12, 0, true)),
                     None,
-                )),
+                ))],
                 TelegramContent::new_value(
                     TelegramContentType::InformationType,
                     (4, 1, None),
@@ -173,9 +173,9 @@ fn test_parse_simple_gas() {
                     Value::Date(Date::new(2023, 7, 5, 15, 26, 41, true)),
                     None,
                 ),
-                None, // all these should be None
-                None, //
-                None, //
+                vec![], // empty vector instead of None
+                vec![], // empty vector instead of None
+                vec![], // empty vector instead of None
                 TelegramContent::new_value(
                     TelegramContentType::InformationType,
                     (4, 1, None),

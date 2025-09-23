@@ -1,9 +1,7 @@
-use crate::error::MainError;
-use crate::telegram::{
-    Telegram, TelegramBase, TelegramData, TelegramContent, TelegramContentType,
-    TelegramContentUnit, Date, Value
-};
 use crate::traits::validatable::Validatable;
+
+use crate::error::{ MainError, parse_error };
+use crate::telegram::*;
 
 #[derive(Clone)]
 pub struct ParserConfig {
@@ -24,10 +22,6 @@ impl ParserConfig {
             is_recursive: is_recursive
         })
     }
-}
-
-pub fn parse_error(msg: &str) -> MainError {
-    MainError::from(msg) // Made MainError implement From<&str>
 }
 
 pub fn parse_header(line: &str) -> Result<ParserConfig, MainError> {
@@ -139,7 +133,7 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
         }
     }
 
-    completed_stack.reverse(); // println!("info: {:?}", completed_stack);
+    completed_stack.reverse();
     Ok(completed_stack)
 }
 
@@ -392,9 +386,9 @@ pub fn parse_date(date_str: &str) -> Result<Date, MainError> {
 pub fn build_telegram(contents: Vec<TelegramContent>) -> Result<Telegram, MainError> {
     let mut start = None;
     let mut date = None;
-    let mut eventlog_severity = None;
-    let mut eventlog_message = None;
-    let mut eventlog_date = None;
+    let mut eventlog_severity = Vec::new();
+    let mut eventlog_message = Vec::new();
+    let mut eventlog_date = Vec::new();
     let mut information_type = None;
     let mut end = None;
 
@@ -406,18 +400,19 @@ pub fn build_telegram(contents: Vec<TelegramContent>) -> Result<Telegram, MainEr
     let mut total_gas_delivered = None;
 
     // Sort contents into appropriate fields
+
     for content in contents {
         match content.telegram_content_type {
             TelegramContentType::Start              => start                = Some(content),
             TelegramContentType::Date               => date                 = Some(content),
-            TelegramContentType::EventlogSeverity   => eventlog_severity    = Some(content),
-            TelegramContentType::EventlogMessage    => eventlog_message     = Some(content),
-            TelegramContentType::EventlogDate       => eventlog_date        = Some(content),
             TelegramContentType::InformationType    => information_type     = Some(content),
             TelegramContentType::End                => end                  = Some(content),
             TelegramContentType::TotalConsumed      => total_consumed       = Some(content),
             TelegramContentType::TotalProduced      => total_produced       = Some(content),
             TelegramContentType::GasTotalDelivered  => total_gas_delivered  = Some(content),
+            TelegramContentType::EventlogSeverity   => eventlog_severity.push((content.id.2.unwrap(), content)),
+            TelegramContentType::EventlogMessage    => eventlog_message.push((content.id.2.unwrap(), content)),
+            TelegramContentType::EventlogDate       => eventlog_date.push((content.id.2.unwrap(), content)),
             TelegramContentType::Voltage            => voltages.push(content),
             TelegramContentType::Current            => currents.push(content),
             TelegramContentType::Power              => powers.push(content)
@@ -428,9 +423,9 @@ pub fn build_telegram(contents: Vec<TelegramContent>) -> Result<Telegram, MainEr
     let base = TelegramBase::new(
         start.ok_or_else(|| parse_error("Missing start field"))?,
         date.ok_or_else(|| parse_error("Missing date field"))?,
-        eventlog_severity.or(Option::None),
-        eventlog_message.or(Option::None),
-        eventlog_date.or(Option::None),
+        eventlog_severity,
+        eventlog_message,
+        eventlog_date,
         information_type.ok_or_else(|| parse_error("Missing information_type field"))?,
         end.ok_or_else(|| parse_error("Missing end field"))?,
     );

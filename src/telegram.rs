@@ -1,7 +1,8 @@
+use tudelft_dsmr_output_generator::{ UnixTimeStamp, date_to_timestamp };
+
 use crate::traits::Validatable;
 
-use crate::parser::parse_error;
-use tudelft_dsmr_output_generator::{UnixTimeStamp, date_to_timestamp};
+use crate::error::parse_error;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TelegramContentType {
@@ -305,9 +306,9 @@ impl Validatable for TelegramContent {
 pub struct TelegramBase {
     pub start: TelegramContent,
     pub date: TelegramContent,
-    pub eventlog_severity: Option<TelegramContent>,
-    pub eventlog_message: Option<TelegramContent>,
-    pub eventlog_date: Option<TelegramContent>,
+    pub eventlog_severities: Vec<(u32, TelegramContent)>,
+    pub eventlog_messages: Vec<(u32, TelegramContent)>,
+    pub eventlog_dates: Vec<(u32, TelegramContent)>,
     pub information_type: TelegramContent,
     pub end: TelegramContent,
 }
@@ -316,18 +317,18 @@ impl TelegramBase {
     pub fn new(
         start: TelegramContent,
         date: TelegramContent,
-        eventlog_severity: Option<TelegramContent>,
-        eventlog_message: Option<TelegramContent>,
-        eventlog_date: Option<TelegramContent>,
+        eventlog_severities: Vec<(u32, TelegramContent)>,
+        eventlog_messages: Vec<(u32, TelegramContent)>,
+        eventlog_dates: Vec<(u32, TelegramContent)>,
         information_type: TelegramContent,
         end: TelegramContent,
     ) -> Self {
         Self {
             start,
             date,
-            eventlog_severity,
-            eventlog_message,
-            eventlog_date,
+            eventlog_severities,
+            eventlog_messages,
+            eventlog_dates,
             information_type,
             end,
         }
