@@ -54,24 +54,24 @@ fn test_telegram_constructor() {
                 Value::Date(Date::new(2002, 2, 14, 0, 0, 0, true)),
                 None,
             ),
-            Some(TelegramContent::new_value(
+            vec![(1, TelegramContent::new_value(
                 TelegramContentType::EventlogSeverity,
                 (3, 1, Some(1)),
                 Value::String("H".to_string()),
                 None,
-            )),
-            Some(TelegramContent::new_value(
+            ))],
+            vec![(1, TelegramContent::new_value(
                 TelegramContentType::EventlogMessage,
                 (3, 2, Some(1)),
                 Value::String("Power outage detected".to_string()),
                 None,
-            )),
-            Some(TelegramContent::new_value(
+            ))],
+            vec![(1, TelegramContent::new_value(
                 TelegramContentType::EventlogDate,
                 (3, 3, Some(1)),
                 Value::Date(Date::new(2002, 2, 14, 14, 30, 0, true)),
                 None,
-            )),
+            ))],
             TelegramContent::new_value(
                 TelegramContentType::InformationType,
                 (4, 1, None),

@@ -71,8 +71,8 @@ fn main() -> Result<(), MainError> {
     telegrams.sort_by_key(|t| match &t.base.date.value {
         Some(Value::Date(date)) => date.timestamp,
         _ => bail!("Invalid timestamp")
-    }
-    );
+    });
+    let telegrams = telegrams; // We can by now assume that telegrams are always sorted by date
 
     // Duplicate timestamps in dsmr file messes up the energy_over_time plot, it does not seem to
     //  mess up the other plots though, but I still skip duplicate timestamps in the other plots
@@ -232,17 +232,25 @@ fn main() -> Result<(), MainError> {
     }
 
     let mut result = Graphs::new()?;
+
     telegrams.iter().for_each(|t| {
-        if let Some(TelegramContent { value: Some(Value::String(message)), .. }) = &t.base.eventlog_message {
-            if let Some(TelegramContent { value: Some(Value::String(severity)), .. }) = &t.base.eventlog_severity {
-                let message = decode_message(message);
-                if *severity == "H".to_string() {
-                    result.add_high_severity_event_log_message(message);
-                } else if *severity == "L".to_string() {
-                    result.add_low_severity_event_log_message(message);
-                } else {
-                    bail!("Reached unreachable statement. You are on your own... :/")
-                }
+        for (id, _) in &t.base.eventlog_dates {
+            let (id, severity) = &t.base.eventlog_severities.iter().find(|x| x.0 == *id).unwrap_or_else(|| bail!("Eventlog misses date"));
+            let (_, message) = &t.base.eventlog_messages.iter().find(|x| x.0 == *id).unwrap_or_else(|| bail!("Eventlog misses message"));
+            match message {
+                TelegramContent { value: Some(Value::String(message)), .. } => {
+                    match severity {
+                        TelegramContent { value: Some(Value::String(severity)), .. } => if *severity == "H".to_string() {
+                            result.add_high_severity_event_log_message(decode_message(message));
+                        } else if *severity == "L".to_string() {
+                            result.add_low_severity_event_log_message(decode_message(message));
+                        } else {
+                            bail!("Unknown severity value")
+                        },
+                        _ => bail!("Invalid severity found")
+                    };
+                },
+                _ => bail!("Invalid message found")
             }
         }
     });
