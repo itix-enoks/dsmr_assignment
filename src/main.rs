@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 use std::io::Read;
 
+use dsmr_assignment::bail;
+
 use tudelft_dsmr_output_generator::voltage_over_time::{ create_voltage_over_time_graph, VoltageData };
 use tudelft_dsmr_output_generator::current_over_time::{ CurrentOverTime, CurrentData };
 use tudelft_dsmr_output_generator::energy_over_time::{ EnergyOverTime, EnergyData };
@@ -10,6 +12,7 @@ use tudelft_dsmr_output_generator::{ Graphs, GraphBuilder, UnixTimeStamp };
 use dsmr_assignment::telegram::{ TelegramContent, TelegramData, Value };
 use dsmr_assignment::error::MainError;
 use dsmr_assignment::parser::parse;
+
 
 /// Reads the DSMR file from the terminal.
 /// You do not need to change this nor understand this.
@@ -27,28 +30,14 @@ fn read_from_stdin() -> Result<String, MainError> {
     Ok(String::from_utf8_lossy(&input).to_string())
 }
 
-macro_rules! bail {
-    // Same effect as (makes compilation easier):
-    // fn bail(message: &str) {
-    //     eprintln!("{message}");
-    //     std::process::exit(42);
-    // }
-    ($message:literal) => {
-        {
-            eprintln!("{}", $message);
-            std::process::exit(42);
-        }
-    };
-}
-
 fn decode_message(message: &String) -> String {
     let mut result = "".to_string();
     let mut chars = message.chars();
     while let Some(ch) = chars.next() {
-        let x = ch.to_digit(16).unwrap_or(0);
+        let x = ch.to_digit(16).unwrap_or_else(|| bail!("Invalid character in message"));
         if let Some(y) = chars.next() {
-            let y = y.to_digit(16).unwrap_or(0);
-            let ascii = char::from_u32(16 * x + y).unwrap_or('0');
+            let y = y.to_digit(16).unwrap_or_else(|| bail!("Invalid character in message"));
+            let ascii = char::from_u32(16 * x + y).unwrap_or_else(|| bail!("Invalid ASCII value"));
             result.push(ascii);
         } else {
             bail!("Unaligned block found")
@@ -62,11 +51,7 @@ fn main() -> Result<(), MainError> {
     let input = read_from_stdin()?;
 
     let telegrams = parse(&input);
-    if telegrams.is_err() {
-        eprintln!("{telegrams}", telegrams = telegrams.unwrap_err());
-        std::process::exit(42);
-    }
-    let mut telegrams = telegrams.unwrap();
+    let mut telegrams = telegrams.unwrap_or_else(|_| bail!("Failed parsing telegram(s)"));
 
     telegrams.sort_by_key(|t| match &t.base.date.value {
         Some(Value::Date(date)) => date.timestamp,

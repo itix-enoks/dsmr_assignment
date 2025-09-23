@@ -1,4 +1,5 @@
 use crate::traits::validatable::Validatable;
+use crate::bail;
 
 use crate::error::{ MainError, parse_error };
 use crate::telegram::*;
@@ -103,16 +104,16 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
                             last_telegram.push(content);
                             completed_stack.push(build_telegram(last_telegram)?);
                         }
-                        if !config.clone().unwrap().is_recursive && temporary_stack.len() > 0 {
+                        if !config.clone().unwrap_or_else(|| bail!("Missing required field")).is_recursive && temporary_stack.len() > 0 {
                             return Err(parse_error("Recursive telegrams are not supported"))
                         }
                     },
                     ref tct => {
-                        if !config.clone().unwrap().is_gas && matches!(tct, TelegramContentType::GasTotalDelivered) {
+                        if !config.clone().unwrap_or_else(|| bail!("Missing required field")).is_gas && matches!(tct, TelegramContentType::GasTotalDelivered) {
                             return Err(parse_error("Gas data is not supported"))
                         }
                         if matches!(tct, TelegramContentType::InformationType) {
-                            if !config.clone().unwrap().is_gas {
+                            if !config.clone().unwrap_or_else(|| bail!("Missing required field")).is_gas {
                                 if let Some(Value::String(ref information_type)) = content.value {
                                     if *information_type == "G".to_string() {
                                         return Err(parse_error("Gas data is not supported"))
@@ -410,9 +411,9 @@ pub fn build_telegram(contents: Vec<TelegramContent>) -> Result<Telegram, MainEr
             TelegramContentType::TotalConsumed      => total_consumed       = Some(content),
             TelegramContentType::TotalProduced      => total_produced       = Some(content),
             TelegramContentType::GasTotalDelivered  => total_gas_delivered  = Some(content),
-            TelegramContentType::EventlogSeverity   => eventlog_severity.push((content.id.2.unwrap(), content)),
-            TelegramContentType::EventlogMessage    => eventlog_message.push((content.id.2.unwrap(), content)),
-            TelegramContentType::EventlogDate       => eventlog_date.push((content.id.2.unwrap(), content)),
+            TelegramContentType::EventlogSeverity   => eventlog_severity.push((content.id.2.unwrap_or_else(|| bail!("Missing required field")), content)),
+            TelegramContentType::EventlogMessage    => eventlog_message.push((content.id.2.unwrap_or_else(|| bail!("Missing required field")), content)),
+            TelegramContentType::EventlogDate       => eventlog_date.push((content.id.2.unwrap_or_else(|| bail!("Missing required field")), content)),
             TelegramContentType::Voltage            => voltages.push(content),
             TelegramContentType::Current            => currents.push(content),
             TelegramContentType::Power              => powers.push(content)
@@ -438,27 +439,27 @@ pub fn build_telegram(contents: Vec<TelegramContent>) -> Result<Telegram, MainEr
     } else if voltages.len() >= 3 && currents.len() >= 3 && powers.len() >= 3
         && total_consumed.is_some() && total_produced.is_some() {
             let voltage_array: [TelegramContent; 3] = [
-                voltages.clone().into_iter().nth(0).unwrap(),
-                voltages.clone().into_iter().nth(1).unwrap(),
-                voltages.clone().into_iter().nth(2).unwrap(),
+                voltages.clone().into_iter().nth(0).unwrap_or_else(|| bail!("Missing required field")),
+                voltages.clone().into_iter().nth(1).unwrap_or_else(|| bail!("Missing required field")),
+                voltages.clone().into_iter().nth(2).unwrap_or_else(|| bail!("Missing required field")),
             ];
             let current_array: [TelegramContent; 3] = [
-                currents.clone().into_iter().nth(0).unwrap(),
-                currents.clone().into_iter().nth(1).unwrap(),
-                currents.clone().into_iter().nth(2).unwrap(),
+                currents.clone().into_iter().nth(0).unwrap_or_else(|| bail!("Missing required field")),
+                currents.clone().into_iter().nth(1).unwrap_or_else(|| bail!("Missing required field")),
+                currents.clone().into_iter().nth(2).unwrap_or_else(|| bail!("Missing required field")),
             ];
             let power_array: [TelegramContent; 3] = [
-                powers.clone().into_iter().nth(0).unwrap(),
-                powers.clone().into_iter().nth(1).unwrap(),
-                powers.clone().into_iter().nth(2).unwrap(),
+                powers.clone().into_iter().nth(0).unwrap_or_else(|| bail!("Missing required field")),
+                powers.clone().into_iter().nth(1).unwrap_or_else(|| bail!("Missing required field")),
+                powers.clone().into_iter().nth(2).unwrap_or_else(|| bail!("Missing required field")),
             ];
 
             TelegramData::Electricity {
                 voltages: voltage_array,
                 currents: current_array,
                 powers: power_array,
-                total_consumed: total_consumed.unwrap(),
-                total_produced: total_produced.unwrap(),
+                total_consumed: total_consumed.unwrap_or_else(|| bail!("Missing required field")),
+                total_produced: total_produced.unwrap_or_else(|| bail!("Missing required field")),
             }
         } else {
             return Err(parse_error("Insufficient data for telegram"))

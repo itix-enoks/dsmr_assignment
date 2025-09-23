@@ -1,8 +1,7 @@
-use tudelft_dsmr_output_generator::{ UnixTimeStamp, date_to_timestamp };
-
 use crate::traits::Validatable;
+use crate::bail;
 
-use crate::error::parse_error;
+use tudelft_dsmr_output_generator::{ UnixTimeStamp, date_to_timestamp };
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TelegramContentType {
@@ -67,9 +66,7 @@ impl Date {
                 minute,
                 seconds,
                 dst,
-            ).ok_or(std::io::ErrorKind::InvalidData).map_err(|_| {
-                parse_error("Invalid date field")
-            }).unwrap(),
+            ).unwrap_or_else(|| bail!("Missing required field")),
 
             year,
             month,
@@ -198,32 +195,32 @@ impl TelegramContent {
     fn is_unit_correct(&self) -> bool {
         match self.telegram_content_type {
             TelegramContentType::Voltage =>
-                match self.unit.as_ref().unwrap() {
+                match self.unit.as_ref().unwrap_or_else(|| bail!("Missing required field")) {
                     TelegramContentUnit::V => true,
                     _ => false
                 },
             TelegramContentType::Current =>
-                match self.unit.as_ref().unwrap() {
+                match self.unit.as_ref().unwrap_or_else(|| bail!("Missing required field")) {
                     TelegramContentUnit::A => true,
                     _ => false
                 },
             TelegramContentType::Power =>
-                match self.unit.as_ref().unwrap() {
+                match self.unit.as_ref().unwrap_or_else(|| bail!("Missing required field")) {
                     TelegramContentUnit::KW => true,
                     _ => false
                 },
             TelegramContentType::TotalConsumed =>
-                match self.unit.as_ref().unwrap() {
+                match self.unit.as_ref().unwrap_or_else(|| bail!("Missing required field")) {
                     TelegramContentUnit::KWH => true,
                     _ => false
                 },
             TelegramContentType::TotalProduced =>
-                match self.unit.as_ref().unwrap() {
+                match self.unit.as_ref().unwrap_or_else(|| bail!("Missing required field")) {
                     TelegramContentUnit::KWH => true,
                     _ => false
                 },
             TelegramContentType::GasTotalDelivered =>
-                match self.unit.as_ref().unwrap() {
+                match self.unit.as_ref().unwrap_or_else(|| bail!("Missing required field")) {
                     TelegramContentUnit::M3 => true,
                     _ => false
                 },
