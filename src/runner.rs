@@ -20,7 +20,7 @@ pub fn run(test: bool) -> Result<(), MainError> {
     };
 
     let telegrams = parse(&input);
-    let mut telegrams = telegrams.unwrap_or_else(|_| bail!("Failed parsing telegram(s)"));
+    let mut telegrams = telegrams?;
 
     telegrams.sort_by_key(|t| match &t.base.date.value {
         Some(Value::Date(date)) => date.timestamp,
