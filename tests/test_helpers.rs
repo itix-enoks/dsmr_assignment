@@ -1,7 +1,7 @@
 use tudelft_dsmr_output_generator::Graphs;
 
-use dsmr_assignment::telegram::*;
 use dsmr_assignment::helpers::*;
+use dsmr_assignment::telegram::*;
 
 #[test]
 fn test_decode_message_simple() {
@@ -25,7 +25,7 @@ fn test_process_voltages_single_telegram() {
         [5.0, 6.0, 4.5],
         [1.15, 1.38, 1.04],
         12345.67,
-        123.45
+        123.45,
     );
 
     let voltages = process_voltages(&[telegram]);
@@ -43,15 +43,15 @@ fn test_process_voltages_duplicate_timestamp() {
         [5.0, 6.0, 4.5],
         [1.15, 1.38, 1.04],
         12345.67,
-        123.45
+        123.45,
     );
     let telegram2 = create_test_electricity_telegram(
-        1234567890, // Same timestamp
+        1234567890,            // Same timestamp
         [235.0, 236.0, 234.0], // Higher voltages
         [5.1, 6.1, 4.6],
         [1.16, 1.39, 1.05],
         12346.67,
-        124.45
+        124.45,
     );
 
     let voltages = process_voltages(&[telegram1, telegram2]);
@@ -68,7 +68,7 @@ fn test_process_voltages_multiple_telegrams() {
         [5.0, 6.0, 4.5],
         [1.15, 1.38, 1.04],
         12345.67,
-        123.45
+        123.45,
     );
     let telegram2 = create_test_electricity_telegram(
         1234567900,
@@ -76,7 +76,7 @@ fn test_process_voltages_multiple_telegrams() {
         [5.2, 6.2, 4.7],
         [1.19, 1.42, 1.08],
         12346.67,
-        124.45
+        124.45,
     );
 
     let voltages = process_voltages(&[telegram1, telegram2]);
@@ -93,7 +93,7 @@ fn test_process_currents_single_telegram() {
         [5.0, 6.0, 4.5],
         [1.15, 1.38, 1.04],
         12345.67,
-        123.45
+        123.45,
     );
 
     let _current_over_time = process_currents(&[telegram]);
@@ -109,7 +109,7 @@ fn test_process_currents_multiple_telegrams() {
         [5.0, 6.0, 4.5],
         [1.15, 1.38, 1.04],
         12345.67,
-        123.45
+        123.45,
     );
     let telegram2 = create_test_electricity_telegram(
         1234567900,
@@ -117,7 +117,7 @@ fn test_process_currents_multiple_telegrams() {
         [5.2, 6.2, 4.7],
         [1.19, 1.42, 1.08],
         12346.67,
-        124.45
+        124.45,
     );
 
     let _current_over_time = process_currents(&[telegram1, telegram2]);
@@ -152,7 +152,7 @@ fn test_process_energy_data_single_telegram() {
         [5.0, 6.0, 4.5],
         [1.15, 1.38, 1.04],
         12345.67,
-        123.45
+        123.45,
     );
 
     let _energy_over_time = process_energy_data(&[telegram]);
@@ -168,7 +168,7 @@ fn test_process_energy_data_multiple_telegrams() {
         [5.0, 6.0, 4.5],
         [1.15, 1.38, 1.04],
         12345.67,
-        123.45
+        123.45,
     );
     let telegram2 = create_test_electricity_telegram(
         1234567900,
@@ -176,7 +176,7 @@ fn test_process_energy_data_multiple_telegrams() {
         [5.2, 6.2, 4.7],
         [1.19, 1.42, 1.08],
         12346.67, // +1.0 kWh consumed
-        124.45    // +1.0 kWh produced
+        124.45,   // +1.0 kWh produced
     );
 
     let _energy_over_time = process_energy_data(&[telegram1, telegram2]);
@@ -192,11 +192,14 @@ fn test_process_voltages_with_none_values() {
         [5.0, 6.0, 4.5],
         [1.15, 1.38, 1.04],
         12345.67,
-        123.45
+        123.45,
     );
 
     // Set voltage values to None
-    if let TelegramData::Electricity { ref mut voltages, .. } = telegram.data {
+    if let TelegramData::Electricity {
+        ref mut voltages, ..
+    } = telegram.data
+    {
         voltages[0].value = None;
         voltages[1].value = None;
         voltages[2].value = None;
@@ -214,11 +217,14 @@ fn test_process_currents_with_none_values() {
         [5.0, 6.0, 4.5],
         [1.15, 1.38, 1.04],
         12345.67,
-        123.45
+        123.45,
     );
 
     // Set current values to None
-    if let TelegramData::Electricity { ref mut currents, .. } = telegram.data {
+    if let TelegramData::Electricity {
+        ref mut currents, ..
+    } = telegram.data
+    {
         currents[0].value = None;
         currents[1].value = None;
         currents[2].value = None;
@@ -233,7 +239,10 @@ fn test_process_gas_data_with_none_value() {
     let mut telegram = create_test_gas_telegram(1234567890, 12345.123);
 
     // Set gas value to None
-    if let TelegramData::Gas { ref mut total_gas_delivered } = telegram.data {
+    if let TelegramData::Gas {
+        ref mut total_gas_delivered,
+    } = telegram.data
+    {
         total_gas_delivered.value = None;
     }
 
@@ -249,11 +258,16 @@ fn test_process_energy_data_with_none_values() {
         [5.0, 6.0, 4.5],
         [1.15, 1.38, 1.04],
         12345.67,
-        123.45
+        123.45,
     );
 
     // Set energy values to None
-    if let TelegramData::Electricity { ref mut total_consumed, ref mut total_produced, .. } = telegram.data {
+    if let TelegramData::Electricity {
+        ref mut total_consumed,
+        ref mut total_produced,
+        ..
+    } = telegram.data
+    {
         total_consumed.value = None;
         total_produced.value = None;
     }
@@ -302,22 +316,77 @@ fn create_test_electricity_telegram(
         ),
         TelegramData::Electricity {
             voltages: [
-                TelegramContent::new_value(TelegramContentType::Voltage, (7, 1, Some(1)), Value::Float(voltages[0]), Some(TelegramContentUnit::V)),
-                TelegramContent::new_value(TelegramContentType::Voltage, (7, 1, Some(2)), Value::Float(voltages[1]), Some(TelegramContentUnit::V)),
-                TelegramContent::new_value(TelegramContentType::Voltage, (7, 1, Some(3)), Value::Float(voltages[2]), Some(TelegramContentUnit::V)),
+                TelegramContent::new_value(
+                    TelegramContentType::Voltage,
+                    (7, 1, Some(1)),
+                    Value::Float(voltages[0]),
+                    Some(TelegramContentUnit::V),
+                ),
+                TelegramContent::new_value(
+                    TelegramContentType::Voltage,
+                    (7, 1, Some(2)),
+                    Value::Float(voltages[1]),
+                    Some(TelegramContentUnit::V),
+                ),
+                TelegramContent::new_value(
+                    TelegramContentType::Voltage,
+                    (7, 1, Some(3)),
+                    Value::Float(voltages[2]),
+                    Some(TelegramContentUnit::V),
+                ),
             ],
             currents: [
-                TelegramContent::new_value(TelegramContentType::Current, (7, 2, Some(1)), Value::Float(currents[0]), Some(TelegramContentUnit::A)),
-                TelegramContent::new_value(TelegramContentType::Current, (7, 2, Some(2)), Value::Float(currents[1]), Some(TelegramContentUnit::A)),
-                TelegramContent::new_value(TelegramContentType::Current, (7, 2, Some(3)), Value::Float(currents[2]), Some(TelegramContentUnit::A)),
+                TelegramContent::new_value(
+                    TelegramContentType::Current,
+                    (7, 2, Some(1)),
+                    Value::Float(currents[0]),
+                    Some(TelegramContentUnit::A),
+                ),
+                TelegramContent::new_value(
+                    TelegramContentType::Current,
+                    (7, 2, Some(2)),
+                    Value::Float(currents[1]),
+                    Some(TelegramContentUnit::A),
+                ),
+                TelegramContent::new_value(
+                    TelegramContentType::Current,
+                    (7, 2, Some(3)),
+                    Value::Float(currents[2]),
+                    Some(TelegramContentUnit::A),
+                ),
             ],
             powers: [
-                TelegramContent::new_value(TelegramContentType::Power, (7, 3, Some(1)), Value::Float(powers[0]), Some(TelegramContentUnit::KW)),
-                TelegramContent::new_value(TelegramContentType::Power, (7, 3, Some(2)), Value::Float(powers[1]), Some(TelegramContentUnit::KW)),
-                TelegramContent::new_value(TelegramContentType::Power, (7, 3, Some(3)), Value::Float(powers[2]), Some(TelegramContentUnit::KW)),
+                TelegramContent::new_value(
+                    TelegramContentType::Power,
+                    (7, 3, Some(1)),
+                    Value::Float(powers[0]),
+                    Some(TelegramContentUnit::KW),
+                ),
+                TelegramContent::new_value(
+                    TelegramContentType::Power,
+                    (7, 3, Some(2)),
+                    Value::Float(powers[1]),
+                    Some(TelegramContentUnit::KW),
+                ),
+                TelegramContent::new_value(
+                    TelegramContentType::Power,
+                    (7, 3, Some(3)),
+                    Value::Float(powers[2]),
+                    Some(TelegramContentUnit::KW),
+                ),
             ],
-            total_consumed: TelegramContent::new_value(TelegramContentType::TotalConsumed, (7, 4, Some(1)), Value::Float(total_consumed), Some(TelegramContentUnit::KWH)),
-            total_produced: TelegramContent::new_value(TelegramContentType::TotalProduced, (7, 4, Some(2)), Value::Float(total_produced), Some(TelegramContentUnit::KWH)),
+            total_consumed: TelegramContent::new_value(
+                TelegramContentType::TotalConsumed,
+                (7, 4, Some(1)),
+                Value::Float(total_consumed),
+                Some(TelegramContentUnit::KWH),
+            ),
+            total_produced: TelegramContent::new_value(
+                TelegramContentType::TotalProduced,
+                (7, 4, Some(2)),
+                Value::Float(total_produced),
+                Some(TelegramContentUnit::KWH),
+            ),
         },
     )
 }
@@ -405,7 +474,7 @@ fn test_process_gas_data_with_electricity_telegrams() {
         [5.0, 6.0, 4.5],
         [1.15, 1.38, 1.04],
         12345.67,
-        123.45
+        123.45,
     );
     let _gas_over_time = process_gas_data(&[electricity_telegram]);
     // Should handle gracefully with no gas data
@@ -420,35 +489,138 @@ fn test_process_energy_data_with_gas_telegrams() {
     assert!(true);
 }
 
-fn create_test_telegram_with_eventlog(event_id: u32, severity: String, message: String) -> Telegram {
+fn create_test_telegram_with_eventlog(
+    event_id: u32,
+    severity: String,
+    message: String,
+) -> Telegram {
     Telegram::new(
         TelegramBase::new(
-            TelegramContent::new_value(TelegramContentType::Start, (1, 1, Some(0)), Value::String("START".to_string()), None),
-            TelegramContent::new_value(TelegramContentType::Date, (2, 1, None), Value::Date(Date::new(2023, 7, 5, 15, 26, 41, true)), None),
-            vec![(event_id, TelegramContent::new_value(TelegramContentType::EventlogSeverity, (3, 1, Some(event_id)), Value::String(severity), None))],
-            vec![(event_id, TelegramContent::new_value(TelegramContentType::EventlogMessage, (3, 2, Some(event_id)), Value::String(message), None))],
-            vec![(event_id, TelegramContent::new_value(TelegramContentType::EventlogDate, (3, 3, Some(event_id)), Value::Date(Date::new(2023, 7, 2, 13, 12, 0, true)), None))],
-            TelegramContent::new_value(TelegramContentType::InformationType, (4, 1, None), Value::String("E".to_string()), None),
-            TelegramContent::new_value(TelegramContentType::End, (1, 2, Some(0)), Value::String("END".to_string()), None),
+            TelegramContent::new_value(
+                TelegramContentType::Start,
+                (1, 1, Some(0)),
+                Value::String("START".to_string()),
+                None,
+            ),
+            TelegramContent::new_value(
+                TelegramContentType::Date,
+                (2, 1, None),
+                Value::Date(Date::new(2023, 7, 5, 15, 26, 41, true)),
+                None,
+            ),
+            vec![(
+                event_id,
+                TelegramContent::new_value(
+                    TelegramContentType::EventlogSeverity,
+                    (3, 1, Some(event_id)),
+                    Value::String(severity),
+                    None,
+                ),
+            )],
+            vec![(
+                event_id,
+                TelegramContent::new_value(
+                    TelegramContentType::EventlogMessage,
+                    (3, 2, Some(event_id)),
+                    Value::String(message),
+                    None,
+                ),
+            )],
+            vec![(
+                event_id,
+                TelegramContent::new_value(
+                    TelegramContentType::EventlogDate,
+                    (3, 3, Some(event_id)),
+                    Value::Date(Date::new(2023, 7, 2, 13, 12, 0, true)),
+                    None,
+                ),
+            )],
+            TelegramContent::new_value(
+                TelegramContentType::InformationType,
+                (4, 1, None),
+                Value::String("E".to_string()),
+                None,
+            ),
+            TelegramContent::new_value(
+                TelegramContentType::End,
+                (1, 2, Some(0)),
+                Value::String("END".to_string()),
+                None,
+            ),
         ),
         TelegramData::Electricity {
             voltages: [
-                TelegramContent::new_value(TelegramContentType::Voltage, (7, 1, Some(1)), Value::Float(230.1), Some(TelegramContentUnit::V)),
-                TelegramContent::new_value(TelegramContentType::Voltage, (7, 1, Some(2)), Value::Float(231.2), Some(TelegramContentUnit::V)),
-                TelegramContent::new_value(TelegramContentType::Voltage, (7, 1, Some(3)), Value::Float(229.8), Some(TelegramContentUnit::V)),
+                TelegramContent::new_value(
+                    TelegramContentType::Voltage,
+                    (7, 1, Some(1)),
+                    Value::Float(230.1),
+                    Some(TelegramContentUnit::V),
+                ),
+                TelegramContent::new_value(
+                    TelegramContentType::Voltage,
+                    (7, 1, Some(2)),
+                    Value::Float(231.2),
+                    Some(TelegramContentUnit::V),
+                ),
+                TelegramContent::new_value(
+                    TelegramContentType::Voltage,
+                    (7, 1, Some(3)),
+                    Value::Float(229.8),
+                    Some(TelegramContentUnit::V),
+                ),
             ],
             currents: [
-                TelegramContent::new_value(TelegramContentType::Current, (7, 2, Some(1)), Value::Float(5.0), Some(TelegramContentUnit::A)),
-                TelegramContent::new_value(TelegramContentType::Current, (7, 2, Some(2)), Value::Float(6.0), Some(TelegramContentUnit::A)),
-                TelegramContent::new_value(TelegramContentType::Current, (7, 2, Some(3)), Value::Float(4.5), Some(TelegramContentUnit::A)),
+                TelegramContent::new_value(
+                    TelegramContentType::Current,
+                    (7, 2, Some(1)),
+                    Value::Float(5.0),
+                    Some(TelegramContentUnit::A),
+                ),
+                TelegramContent::new_value(
+                    TelegramContentType::Current,
+                    (7, 2, Some(2)),
+                    Value::Float(6.0),
+                    Some(TelegramContentUnit::A),
+                ),
+                TelegramContent::new_value(
+                    TelegramContentType::Current,
+                    (7, 2, Some(3)),
+                    Value::Float(4.5),
+                    Some(TelegramContentUnit::A),
+                ),
             ],
             powers: [
-                TelegramContent::new_value(TelegramContentType::Power, (7, 3, Some(1)), Value::Float(1.15), Some(TelegramContentUnit::KW)),
-                TelegramContent::new_value(TelegramContentType::Power, (7, 3, Some(2)), Value::Float(1.38), Some(TelegramContentUnit::KW)),
-                TelegramContent::new_value(TelegramContentType::Power, (7, 3, Some(3)), Value::Float(1.04), Some(TelegramContentUnit::KW)),
+                TelegramContent::new_value(
+                    TelegramContentType::Power,
+                    (7, 3, Some(1)),
+                    Value::Float(1.15),
+                    Some(TelegramContentUnit::KW),
+                ),
+                TelegramContent::new_value(
+                    TelegramContentType::Power,
+                    (7, 3, Some(2)),
+                    Value::Float(1.38),
+                    Some(TelegramContentUnit::KW),
+                ),
+                TelegramContent::new_value(
+                    TelegramContentType::Power,
+                    (7, 3, Some(3)),
+                    Value::Float(1.04),
+                    Some(TelegramContentUnit::KW),
+                ),
             ],
-            total_consumed: TelegramContent::new_value(TelegramContentType::TotalConsumed, (7, 4, Some(1)), Value::Float(12345.67), Some(TelegramContentUnit::KWH)),
-            total_produced: TelegramContent::new_value(TelegramContentType::TotalProduced, (7, 4, Some(2)), Value::Float(123.45), Some(TelegramContentUnit::KWH)),
+            total_consumed: TelegramContent::new_value(
+                TelegramContentType::TotalConsumed,
+                (7, 4, Some(1)),
+                Value::Float(12345.67),
+                Some(TelegramContentUnit::KWH),
+            ),
+            total_produced: TelegramContent::new_value(
+                TelegramContentType::TotalProduced,
+                (7, 4, Some(2)),
+                Value::Float(123.45),
+                Some(TelegramContentUnit::KWH),
+            ),
         },
     )
 }
