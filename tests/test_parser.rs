@@ -420,3 +420,16 @@ fn test_parse_good_sequences() {
         );
     }
 }
+
+#[test]
+fn test_wrong_values() {
+    assert!(parse_line("1.1.0#(SSSSTART)").is_err());
+
+    assert!(parse_line("1.2.0(ENDD)").is_err());
+
+    let long_message = "A".repeat(1025);
+    let eventlog_line = format!("3.2.1({})", long_message);
+    assert!(parse_line(&eventlog_line).is_err());
+
+    assert!(parse_line("3.1.1#(X)").is_err());
+}
