@@ -5,9 +5,9 @@ use crate::bail;
 use tudelft_dsmr_output_generator::voltage_over_time::create_voltage_over_time_graph;
 use tudelft_dsmr_output_generator::Graphs;
 
-use crate::telegram::Value;
 use crate::error::MainError;
 use crate::parser::parse;
+use crate::telegram::Value;
 
 use crate::helpers::*;
 
@@ -16,8 +16,7 @@ pub fn run(test: bool) -> Result<(), MainError> {
         &read_from_stdin()?
     } else {
         &fs::read_to_string("examples/good/two_packets.dsmr")
-        .expect("Failed to read two_packets.dsmr file")
-
+            .expect("Failed to read two_packets.dsmr file")
     };
 
     let telegrams = parse(&input);
@@ -25,7 +24,7 @@ pub fn run(test: bool) -> Result<(), MainError> {
 
     telegrams.sort_by_key(|t| match &t.base.date.value {
         Some(Value::Date(date)) => date.timestamp,
-        _ => bail!("Invalid timestamp")
+        _ => bail!("Invalid timestamp"),
     });
     let telegrams = telegrams; // We can by now assume that telegrams are always sorted by date
 

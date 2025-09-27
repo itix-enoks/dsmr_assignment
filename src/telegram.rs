@@ -1,7 +1,7 @@
-use crate::traits::Validatable;
 use crate::bail;
+use crate::traits::Validatable;
 
-use tudelft_dsmr_output_generator::{ UnixTimeStamp, date_to_timestamp };
+use tudelft_dsmr_output_generator::{date_to_timestamp, UnixTimeStamp};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TelegramContentType {
@@ -22,7 +22,7 @@ pub enum TelegramContentType {
     /// Gas
     GasTotalDelivered,
 
-    End
+    End,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -31,7 +31,7 @@ pub enum TelegramContentUnit {
     A,
     KW,
     KWH,
-    M3
+    M3,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -44,7 +44,7 @@ pub struct Date {
     pub hour: u8,
     pub minute: u8,
     pub seconds: u8,
-    pub dst: bool
+    pub dst: bool,
 }
 
 impl Date {
@@ -55,18 +55,11 @@ impl Date {
         hour: u8,
         minute: u8,
         seconds: u8,
-        dst: bool
+        dst: bool,
     ) -> Self {
         Date {
-            timestamp: date_to_timestamp(
-                year,
-                month,
-                day,
-                hour,
-                minute,
-                seconds,
-                dst,
-            ).unwrap_or_else(|| bail!("Missing required field")),
+            timestamp: date_to_timestamp(year, month, day, hour, minute, seconds, dst)
+                .unwrap_or_else(|| bail!("Missing required field")),
 
             year,
             month,
@@ -82,11 +75,13 @@ impl Date {
 impl Validatable for Date {
     fn validate(&self) -> bool {
         // Add proper date validation logic here
-        self.month >= 1 && self.month <= 12 &&
-            self.day >= 1 && self.day <= 31 &&
-            self.hour < 24 &&
-            self.minute < 60 &&
-            self.seconds < 60
+        self.month >= 1
+            && self.month <= 12
+            && self.day >= 1
+            && self.day <= 31
+            && self.hour < 24
+            && self.minute < 60
+            && self.seconds < 60
     }
 }
 
@@ -94,7 +89,7 @@ impl Validatable for Date {
 pub enum Value {
     String(String),
     Date(Date),
-    Float(f64)
+    Float(f64),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -110,7 +105,7 @@ impl TelegramContent {
         telegram_content_type: TelegramContentType,
         id: (u32, u32, Option<u32>),
         value: Value,
-        unit: Option<TelegramContentUnit>
+        unit: Option<TelegramContentUnit>,
     ) -> Self {
         Self {
             telegram_content_type,
@@ -124,141 +119,144 @@ impl TelegramContent {
     // These tests are just for when I still f- up the constructions of said telegram content types
     fn is_id_correct(&self) -> bool {
         match self.telegram_content_type {
-            TelegramContentType::Start =>
-                match self.id {
-                    (1, 1, _) => true, // NOTE: childs do not have the third omitted digit, but parents do
-                    _ => false
-                },
-            TelegramContentType::Date =>
-                match self.id {
-                    (2, 1, None) => true,
-                    _ => false
-                }
-            TelegramContentType::EventlogSeverity =>
-                match self.id {
-                    (3, 1, Some(_)) => true,
-                    _ => false
-                },
-            TelegramContentType::EventlogMessage =>
-                match self.id {
-                    (3, 2, Some(_)) => true,
-                    _ => false
-                },
-            TelegramContentType::EventlogDate =>
-                match self.id {
-                    (3, 3, Some(_)) => true,
-                    _ => false
-                },
-            TelegramContentType::InformationType =>
-                match self.id {
-                    (4, 1, None) => true,
-                    _ => false
-                },
-            TelegramContentType::Voltage =>
-                match self.id {
-                    (7, 1, Some(_)) => true,
-                    _ => false
-                },
-            TelegramContentType::Current =>
-                match self.id {
-                    (7, 2, Some(_)) => true,
-                    _ => false
-                },
-            TelegramContentType::Power =>
-                match self.id {
-                    (7, 3, Some(_)) => true,
-                    _ => false
-                },
-            TelegramContentType::TotalConsumed =>
-                match self.id {
-                    (7, 4, Some(1)) => true,
-                    _ => false
-                },
-            TelegramContentType::TotalProduced =>
-                match self.id {
-                    (7, 4, Some(2)) => true,
-                    _ => false
-                },
-            TelegramContentType::GasTotalDelivered =>
-                match self.id {
-                    (5, 2, None) => true,
-                    _ => false
-                },
-            TelegramContentType::End =>
-                match self.id {
-                    (1, 2, _) => true, // NOTE: childs do not have the third omitted digit, but parents do
-                    _ => false
-                }
+            TelegramContentType::Start => match self.id {
+                (1, 1, _) => true, // NOTE: childs do not have the third omitted digit, but parents do
+                _ => false,
+            },
+            TelegramContentType::Date => match self.id {
+                (2, 1, None) => true,
+                _ => false,
+            },
+            TelegramContentType::EventlogSeverity => match self.id {
+                (3, 1, Some(_)) => true,
+                _ => false,
+            },
+            TelegramContentType::EventlogMessage => match self.id {
+                (3, 2, Some(_)) => true,
+                _ => false,
+            },
+            TelegramContentType::EventlogDate => match self.id {
+                (3, 3, Some(_)) => true,
+                _ => false,
+            },
+            TelegramContentType::InformationType => match self.id {
+                (4, 1, None) => true,
+                _ => false,
+            },
+            TelegramContentType::Voltage => match self.id {
+                (7, 1, Some(_)) => true,
+                _ => false,
+            },
+            TelegramContentType::Current => match self.id {
+                (7, 2, Some(_)) => true,
+                _ => false,
+            },
+            TelegramContentType::Power => match self.id {
+                (7, 3, Some(_)) => true,
+                _ => false,
+            },
+            TelegramContentType::TotalConsumed => match self.id {
+                (7, 4, Some(1)) => true,
+                _ => false,
+            },
+            TelegramContentType::TotalProduced => match self.id {
+                (7, 4, Some(2)) => true,
+                _ => false,
+            },
+            TelegramContentType::GasTotalDelivered => match self.id {
+                (5, 2, None) => true,
+                _ => false,
+            },
+            TelegramContentType::End => match self.id {
+                (1, 2, _) => true, // NOTE: childs do not have the third omitted digit, but parents do
+                _ => false,
+            },
         }
     }
 
     fn is_unit_correct(&self) -> bool {
         match self.telegram_content_type {
-            TelegramContentType::Voltage =>
-                match self.unit.as_ref().unwrap_or_else(|| bail!("Missing required field")) {
-                    TelegramContentUnit::V => true,
-                    _ => false
-                },
-            TelegramContentType::Current =>
-                match self.unit.as_ref().unwrap_or_else(|| bail!("Missing required field")) {
-                    TelegramContentUnit::A => true,
-                    _ => false
-                },
-            TelegramContentType::Power =>
-                match self.unit.as_ref().unwrap_or_else(|| bail!("Missing required field")) {
-                    TelegramContentUnit::KW => true,
-                    _ => false
-                },
-            TelegramContentType::TotalConsumed =>
-                match self.unit.as_ref().unwrap_or_else(|| bail!("Missing required field")) {
-                    TelegramContentUnit::KWH => true,
-                    _ => false
-                },
-            TelegramContentType::TotalProduced =>
-                match self.unit.as_ref().unwrap_or_else(|| bail!("Missing required field")) {
-                    TelegramContentUnit::KWH => true,
-                    _ => false
-                },
-            TelegramContentType::GasTotalDelivered =>
-                match self.unit.as_ref().unwrap_or_else(|| bail!("Missing required field")) {
-                    TelegramContentUnit::M3 => true,
-                    _ => false
-                },
-            _ =>
-                match self.unit.as_ref() {
-                    None => true,
-                    _ => false
-                },
+            TelegramContentType::Voltage => match self
+                .unit
+                .as_ref()
+                .unwrap_or_else(|| bail!("Missing required field"))
+            {
+                TelegramContentUnit::V => true,
+                _ => false,
+            },
+            TelegramContentType::Current => match self
+                .unit
+                .as_ref()
+                .unwrap_or_else(|| bail!("Missing required field"))
+            {
+                TelegramContentUnit::A => true,
+                _ => false,
+            },
+            TelegramContentType::Power => match self
+                .unit
+                .as_ref()
+                .unwrap_or_else(|| bail!("Missing required field"))
+            {
+                TelegramContentUnit::KW => true,
+                _ => false,
+            },
+            TelegramContentType::TotalConsumed => match self
+                .unit
+                .as_ref()
+                .unwrap_or_else(|| bail!("Missing required field"))
+            {
+                TelegramContentUnit::KWH => true,
+                _ => false,
+            },
+            TelegramContentType::TotalProduced => match self
+                .unit
+                .as_ref()
+                .unwrap_or_else(|| bail!("Missing required field"))
+            {
+                TelegramContentUnit::KWH => true,
+                _ => false,
+            },
+            TelegramContentType::GasTotalDelivered => match self
+                .unit
+                .as_ref()
+                .unwrap_or_else(|| bail!("Missing required field"))
+            {
+                TelegramContentUnit::M3 => true,
+                _ => false,
+            },
+            _ => match self.unit.as_ref() {
+                None => true,
+                _ => false,
+            },
         }
     }
 
     fn is_value_correct(&self) -> bool {
         match self.telegram_content_type {
-            TelegramContentType::Start |
-            TelegramContentType::EventlogSeverity |
-            TelegramContentType::EventlogMessage |
-            TelegramContentType::InformationType |
-            TelegramContentType::End => {
+            TelegramContentType::Start
+            | TelegramContentType::EventlogSeverity
+            | TelegramContentType::EventlogMessage
+            | TelegramContentType::InformationType
+            | TelegramContentType::End => {
                 if let Some(Value::String(_)) = self.value {
                     return true;
                 } else {
                     return false;
                 }
-            },
-            TelegramContentType::Date |
-            TelegramContentType::EventlogDate => {
+            }
+            TelegramContentType::Date | TelegramContentType::EventlogDate => {
                 if let Some(Value::Date(_)) = self.value {
                     return true;
                 } else {
                     return false;
                 }
-            },
-            TelegramContentType::Voltage |
-            TelegramContentType::Current |
-            TelegramContentType::Power |
-            TelegramContentType::TotalConsumed |
-            TelegramContentType::TotalProduced |
-            TelegramContentType::GasTotalDelivered => {
+            }
+            TelegramContentType::Voltage
+            | TelegramContentType::Current
+            | TelegramContentType::Power
+            | TelegramContentType::TotalConsumed
+            | TelegramContentType::TotalProduced
+            | TelegramContentType::GasTotalDelivered => {
                 if let Some(Value::Float(_)) = self.value {
                     return true;
                 } else {
@@ -354,9 +352,6 @@ pub struct Telegram {
 
 impl Telegram {
     pub fn new(base: TelegramBase, data: TelegramData) -> Self {
-        Self {
-            base,
-            data
-        }
+        Self { base, data }
     }
 }

@@ -59,12 +59,10 @@ macro_rules! bail {
     //     eprintln!("{message}");
     //     std::process::exit(42);
     // }
-    ($message:literal) => {
-        {
-            eprintln!("{}", $message);
-            std::process::exit(42);
-        }
-    };
+    ($message:literal) => {{
+        eprintln!("{}", $message);
+        std::process::exit(42);
+    }};
 }
 
 pub use bail; // Note that we do not do `use crate::error::bail;` -> Macro's can only be exported on top of the top-level crate. I do not grasp *why*...
