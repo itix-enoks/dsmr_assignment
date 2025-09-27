@@ -12,6 +12,7 @@ use tudelft_dsmr_output_generator::PlotError;
 pub enum MainError {
     IoError(io::Error),
     PlotError(PlotError),
+    ParseError(io::Error),
 }
 
 // Define how to print out the error when it occurs based on the type of error it is
@@ -20,6 +21,7 @@ impl Display for MainError {
         match self {
             MainError::IoError(e) => write!(f, "IO Error Occured: {e}"),
             MainError::PlotError(e) => write!(f, "Plot Error Occured: {e}"),
+            MainError::ParseError(e) => write!(f, "Parse Error Occured: {e}"),
         }
     }
 }
@@ -44,7 +46,8 @@ impl From<PlotError> for MainError {
 
 impl From<&str> for MainError {
     fn from(value: &str) -> Self {
-        MainError::IoError(io::Error::new(io::ErrorKind::InvalidData, value))
+        // Only ParseError suffices, as I only am concerned with crunching input files
+        MainError::ParseError(io::Error::new(io::ErrorKind::InvalidData, value))
     }
 }
 

@@ -1,4 +1,3 @@
-use crate::bail;
 use crate::traits::validatable::Validatable;
 
 use crate::error::{parse_error, MainError};
@@ -20,7 +19,7 @@ impl ParserConfig {
         if version == (1, 0) && (is_gas || is_recursive) {
             return Err(parse_error(
                 format!(
-                    "Protocal version {}.{} does not support extensions",
+                    "Protocol version {}.{} does not support extensions",
                     version.0, version.1
                 )
                 .as_str(),
@@ -37,10 +36,10 @@ impl ParserConfig {
 
 pub fn parse_header(line: &str) -> Result<ParserConfig, MainError> {
     if line.contains(' ') {
-        return Err(parse_error("Invalid header format"));
+        return Err(parse_error("Header must not contain spaces"));
     }
     if !line.starts_with('/') {
-        return Err(parse_error("Invalid header format"));
+        return Err(parse_error("Header must start with /"));
     }
 
     let parts: Vec<&str> = line.split(&['/', '\\'][..]).collect();
@@ -53,11 +52,17 @@ pub fn parse_header(line: &str) -> Result<ParserConfig, MainError> {
             if !line.contains('+') {
                 (1, 0)
             } else {
-                return Err(parse_error("Invalid header format"));
+                return Err(parse_error(
+                    "Protocol version v1.0 does not support extensions",
+                ));
             }
         }
         "v12" => (1, 2),
-        _ => return Err(parse_error("Invalid header format")),
+        v => {
+            return Err(parse_error(
+                format!("Unknown protocol version {v}").as_str(),
+            ))
+        }
     };
 
     let parts: Vec<&str> = line.split('+').collect();
@@ -70,7 +75,7 @@ pub fn parse_header(line: &str) -> Result<ParserConfig, MainError> {
         "g" => (true, false),
         "r" => (false, true),
         "gr" | "rg" => (true, true),
-        _ => return Err(parse_error("Invalid header format")),
+        _ => return Err(parse_error("Header contains invalid extensions")),
     };
 
     ParserConfig::new(version, is_gas, is_recursive)
@@ -79,7 +84,9 @@ pub fn parse_header(line: &str) -> Result<ParserConfig, MainError> {
 pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
     let lines: Vec<&str> = input.lines().collect();
     if lines.is_empty() {
-        return Err(parse_error("Empty input"));
+        return Err(parse_error(
+            "Input is empty, did you connect your keyboard?",
+        ));
     }
     let mut config: Option<ParserConfig> = Option::None;
     let mut temporary_stack: Vec<Vec<TelegramContent>> = Vec::new();
@@ -114,7 +121,7 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
                         }
                         if !config
                             .clone()
-                            .unwrap_or_else(|| bail!("Missing required field"))
+                            .ok_or_else(|| return parse_error("Constructing configurator failed"))?
                             .is_recursive
                             && temporary_stack.len() > 0
                         {
@@ -124,7 +131,7 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
                     ref tct => {
                         if !config
                             .clone()
-                            .unwrap_or_else(|| bail!("Missing required field"))
+                            .ok_or_else(|| return parse_error("Constructing configurator failed"))?
                             .is_gas
                             && matches!(tct, TelegramContentType::GasTotalDelivered)
                         {
@@ -133,7 +140,9 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
                         if matches!(tct, TelegramContentType::InformationType) {
                             if !config
                                 .clone()
-                                .unwrap_or_else(|| bail!("Missing required field"))
+                                .ok_or_else(|| {
+                                    return parse_error("Constructing configurator failed");
+                                })?
                                 .is_gas
                             {
                                 if let Some(Value::String(ref information_type)) = content.value {
@@ -162,12 +171,12 @@ pub fn parse(input: &str) -> Result<Vec<Telegram>, MainError> {
 
 pub fn parse_line(line: &str) -> Result<TelegramContent, MainError> {
     if !line.contains('(') || !line.contains(')') {
-        return Err(parse_error("Invalid line format"));
+        return Err(parse_error("Invalid line format: missing parentheses"));
     }
 
     let parts: Vec<&str> = line.split('#').collect();
     if parts.len() != 2 {
-        return Err(parse_error("Invalid line format"));
+        return Err(parse_error("Invalid line format: missing #-delimiter"));
     }
 
     let id_part = parts[0];
@@ -183,7 +192,7 @@ pub fn parse_line(line: &str) -> Result<TelegramContent, MainError> {
     let (value_str, unit) = if value_part.contains('*') {
         let value_parts: Vec<&str> = value_part.split('*').collect();
         if value_parts.len() != 2 {
-            return Err(parse_error("Invalid value*unit format"));
+            return Err(parse_error("Invalid value-unit format"));
         }
         (value_parts[0], Some(parse_unit(value_parts[1])?))
     } else {
@@ -322,7 +331,7 @@ pub fn parse_line(line: &str) -> Result<TelegramContent, MainError> {
     if telegram_content.validate() {
         Ok(telegram_content)
     } else {
-        return Err(parse_error("Invalid final telegram content"));
+        return Err(parse_error("Could not construct final telegram content"));
     }
 }
 
@@ -469,7 +478,6 @@ pub fn build_telegram(contents: Vec<TelegramContent>) -> Result<Telegram, MainEr
     let mut total_gas_delivered = None;
 
     // Sort contents into appropriate fields
-
     for content in contents {
         match content.telegram_content_type {
             TelegramContentType::Start => start = Some(content),
@@ -483,21 +491,21 @@ pub fn build_telegram(contents: Vec<TelegramContent>) -> Result<Telegram, MainEr
                 content
                     .id
                     .2
-                    .unwrap_or_else(|| bail!("Missing required field")),
+                    .ok_or_else(|| return parse_error("Could not unpack eventlog severity ID"))?,
                 content,
             )),
             TelegramContentType::EventlogMessage => eventlog_message.push((
                 content
                     .id
                     .2
-                    .unwrap_or_else(|| bail!("Missing required field")),
+                    .ok_or_else(|| return parse_error("Could not unpack eventlog message ID"))?,
                 content,
             )),
             TelegramContentType::EventlogDate => eventlog_date.push((
                 content
                     .id
                     .2
-                    .unwrap_or_else(|| bail!("Missing required field")),
+                    .ok_or_else(|| return parse_error("Could not unpack eventlog date ID"))?,
                 content,
             )),
             TelegramContentType::Voltage => voltages.push(content),
@@ -518,78 +526,66 @@ pub fn build_telegram(contents: Vec<TelegramContent>) -> Result<Telegram, MainEr
     );
 
     // Determine data type and build TelegramData
-    let data = if let Some(gas_delivered) = total_gas_delivered {
-        TelegramData::Gas {
-            total_gas_delivered: gas_delivered,
-        }
-    } else if voltages.len() >= 3
-        && currents.len() >= 3
-        && powers.len() >= 3
-        && total_consumed.is_some()
-        && total_produced.is_some()
-    {
-        let voltage_array: [TelegramContent; 3] = [
-            voltages
-                .clone()
-                .into_iter()
-                .nth(0)
-                .unwrap_or_else(|| bail!("Missing required field")),
-            voltages
-                .clone()
-                .into_iter()
-                .nth(1)
-                .unwrap_or_else(|| bail!("Missing required field")),
-            voltages
-                .clone()
-                .into_iter()
-                .nth(2)
-                .unwrap_or_else(|| bail!("Missing required field")),
-        ];
-        let current_array: [TelegramContent; 3] = [
-            currents
-                .clone()
-                .into_iter()
-                .nth(0)
-                .unwrap_or_else(|| bail!("Missing required field")),
-            currents
-                .clone()
-                .into_iter()
-                .nth(1)
-                .unwrap_or_else(|| bail!("Missing required field")),
-            currents
-                .clone()
-                .into_iter()
-                .nth(2)
-                .unwrap_or_else(|| bail!("Missing required field")),
-        ];
-        let power_array: [TelegramContent; 3] = [
-            powers
-                .clone()
-                .into_iter()
-                .nth(0)
-                .unwrap_or_else(|| bail!("Missing required field")),
-            powers
-                .clone()
-                .into_iter()
-                .nth(1)
-                .unwrap_or_else(|| bail!("Missing required field")),
-            powers
-                .clone()
-                .into_iter()
-                .nth(2)
-                .unwrap_or_else(|| bail!("Missing required field")),
-        ];
+    let data =
+        if let Some(gas_delivered) = total_gas_delivered {
+            TelegramData::Gas {
+                total_gas_delivered: gas_delivered,
+            }
+        } else if voltages.len() >= 3
+            && currents.len() >= 3
+            && powers.len() >= 3
+            && total_consumed.is_some()
+            && total_produced.is_some()
+        {
+            let voltage_array: [TelegramContent; 3] =
+                [
+                    voltages.clone().into_iter().nth(0).ok_or_else(|| {
+                        return parse_error("Could not unpack phase_1 voltage value");
+                    })?,
+                    voltages.clone().into_iter().nth(1).ok_or_else(|| {
+                        return parse_error("Could not unpack phase_2 voltage value");
+                    })?,
+                    voltages.clone().into_iter().nth(2).ok_or_else(|| {
+                        return parse_error("Could not unpack phase_3 voltage value");
+                    })?,
+                ];
+            let current_array: [TelegramContent; 3] =
+                [
+                    currents.clone().into_iter().nth(0).ok_or_else(|| {
+                        return parse_error("Could not unpack phase_1 current value");
+                    })?,
+                    currents.clone().into_iter().nth(1).ok_or_else(|| {
+                        return parse_error("Could not unpack phase_2 current value");
+                    })?,
+                    currents.clone().into_iter().nth(2).ok_or_else(|| {
+                        return parse_error("Could not unpack phase_3 current value");
+                    })?,
+                ];
+            let power_array: [TelegramContent; 3] =
+                [
+                    powers.clone().into_iter().nth(0).ok_or_else(|| {
+                        return parse_error("Could not unpack phase_1 power value");
+                    })?,
+                    powers.clone().into_iter().nth(1).ok_or_else(|| {
+                        return parse_error("Could not unpack phase_2 power value");
+                    })?,
+                    powers.clone().into_iter().nth(2).ok_or_else(|| {
+                        return parse_error("Could not unpack phase_3 power value");
+                    })?,
+                ];
 
-        TelegramData::Electricity {
-            voltages: voltage_array,
-            currents: current_array,
-            powers: power_array,
-            total_consumed: total_consumed.unwrap_or_else(|| bail!("Missing required field")),
-            total_produced: total_produced.unwrap_or_else(|| bail!("Missing required field")),
-        }
-    } else {
-        return Err(parse_error("Insufficient data for telegram"));
-    };
+            TelegramData::Electricity {
+                voltages: voltage_array,
+                currents: current_array,
+                powers: power_array,
+                total_consumed: total_consumed
+                    .ok_or_else(|| return parse_error("Could not unpack consumed power value"))?,
+                total_produced: total_produced
+                    .ok_or_else(|| return parse_error("Could not unpack produced power value"))?,
+            }
+        } else {
+            return Err(parse_error("Missing required fields for telegram"));
+        };
 
     Ok(Telegram::new(base, data))
 }
